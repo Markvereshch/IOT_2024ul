@@ -2,10 +2,12 @@
 using Opc.UaFx;
 using Opc.UaFx.Client;
 using System.Text.RegularExpressions;
-using VirtualDevice;
+using VirtualDevices;
+using DeviceReader;
 internal class NodeReader
 {
-    public static void Main(string[] args)
+    private static ClientManager clientManager;
+    public static async Task Main(string[] args)
     {
         try
         {
@@ -13,16 +15,8 @@ internal class NodeReader
             {
                 client.Connect();
                 BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
-                var deviceHandlers = new List<DeviceGroup>();
-                for(int i = 0; i < devices.Count; i++)
-                {
-                    var group = new DeviceGroup(connections[i], devices[i]);
-                    deviceHandlers.Add(group);
-                }
-                foreach(DeviceGroup deviceGroup in deviceHandlers)
-                {
-                    deviceGroup.PrintInfo();
-                }
+                clientManager = new ClientManager(connections, devices);
+                await clientManager.TestMethod();
             }
         }
         catch(OpcException ex)

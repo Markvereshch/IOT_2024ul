@@ -1,4 +1,4 @@
-!!!!!About the "connectionStrings" file:
+!!!!!About the "connectionStrings.txt" file:
 Every connection string must be on a separate line. Example:
 ------------------------------------------------------------
 connectionStringA
