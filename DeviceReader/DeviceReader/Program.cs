@@ -4,7 +4,7 @@ using Opc.UaFx.Client;
 using System.Text.RegularExpressions;
 using VirtualDevices;
 using DeviceReader;
-internal class NodeReader
+internal class ProgramEntryPoint
 {
     private static ClientManager clientManager;
     public static async Task Main(string[] args)
@@ -15,8 +15,8 @@ internal class NodeReader
             {
                 client.Connect();
                 BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
-                clientManager = new ClientManager(connections, devices);
-                await clientManager.TestMethod();
+                clientManager = new ClientManager(connections, devices, client);
+                await clientManager.InitializeClientManager();
             }
         }
         catch(OpcException ex)
@@ -88,7 +88,7 @@ internal class NodeReader
         }
         return devices;
     }
-    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is device node or not
+    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is serverDevice node or not
     {
         string pattern = @"^Device [0-9]+$";
         Regex exp = new Regex(pattern);
@@ -99,7 +99,7 @@ internal class NodeReader
         else
             return false;
     }
-    private static void TestMethod(OpcClient client) //Test to read all information from all available devices
+    private static void ReadAllNodes_TestMethod(OpcClient client) //Test to read all information from all available devices
     {
         var devices = BrowseDevices(client);
         foreach (var device in devices)
