@@ -25,7 +25,7 @@ namespace VirtualDevices
         private readonly OpcNodeInfo serverDevice;
         private readonly DeviceClient deviceClient;
         private readonly string connectionString;
-
+        private readonly OpcClient client;
         public OpcNodeInfo ServerDevice
         {
             get { return serverDevice; }
@@ -38,11 +38,12 @@ namespace VirtualDevices
         {
             get { return connectionString;}
         }
-        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, string connectionString)
+        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, string connectionString, OpcClient client)
         {
             this.deviceClient = deviceClient;
             this.serverDevice = serverDevice;
             this.connectionString = connectionString;
+            this.client = client;
         }
         public void PrintInfo()
         {
@@ -57,7 +58,38 @@ namespace VirtualDevices
             await deviceClient.SendEventAsync(message);
         }
         #endregion
-        public async Task InitializeTwinOnStart()//Initial device twin report
+        #region Device Twin
+        public async Task<int> GetReportedProperty(string name)//Get DeviceError or ProductionRate properties
+        {
+            try
+            {
+                var twin = await deviceClient.GetTwinAsync();
+                var reportedProperties = twin.Properties.Reported;
+                int property = reportedProperties.Contains(name) ? reportedProperties[name] : 0;
+                return property;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+        public async Task ReportPropertyToTwin(string propertyName, int value)//Report ProductionRate or DeviceError to the device twin
+        {
+            var reportedProperties = new TwinCollection();
+            reportedProperties[propertyName] = value;
+            if (propertyName.Equals("ProductionRate"))
+            {
+                string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+                Console.WriteLine($"Production rate of {deviceName} has been changed to {value}");
+            }
+            await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
+        }
+        public async Task Initialize()
+        {
+            await InitializeTwinOnStart();
+            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChanged, deviceClient);
+        }
+        private async Task InitializeTwinOnStart()//Initial device twin report
         {
             var twin = await deviceClient.GetTwinAsync();
 
@@ -67,21 +99,22 @@ namespace VirtualDevices
 
             await deviceClient.UpdateReportedPropertiesAsync(initialReportedProperties);
         }
-        #region Sending Errors
-        public async Task<int> GetOldErrorCode()//Get error from reported properties to check whether a new error occured or not.
+        private async Task DesiredPropertyChanged(TwinCollection desiredProperties, object userContext)
         {
-            try
-            {
-                var twin = await deviceClient.GetTwinAsync();
-                var reportedProperties = twin.Properties.Reported;
-                int deviceErrors = reportedProperties.Contains("DeviceError") ? reportedProperties["DeviceError"] : 0;
-                return deviceErrors;
-            }
-            catch
-            {
-                return 0;
-            }
+            string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string nodeId = $"ns=2;s={deviceName}/";
+
+            Console.WriteLine($"Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
+
+            int value = (int)desiredProperties["ProductionRate"];
+            await ReportPropertyToTwin("ProductionRate", value);
+            OpcStatus result = client.WriteNode(nodeId + "ProductionRate", value);
+
+            Console.WriteLine(result.ToString());
+            Console.WriteLine("Node has been changed");
         }
+        #endregion
+        #region Sending Errors
         public async Task SendErrorEventMessage(int errorCode)//Send message with occured error
         {
             string deviceName = this.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
@@ -95,17 +128,8 @@ namespace VirtualDevices
             message.ContentEncoding = "utf-8";
 
             Console.WriteLine(dataString);
-            await Task.Delay(1000);
             await deviceClient.SendEventAsync(message);
-            await ReportErrorToTwin(errorCode);
-        }
-        public async Task ReportErrorToTwin(int errorCode)//Write new error code into reported values of device twin
-        {
-            var twin = deviceClient.GetTwinAsync();
-            var reportedProperties = new TwinCollection();
-            reportedProperties["DeviceError"] = errorCode;
-
-            await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
+            await ReportPropertyToTwin("DeviceError", errorCode);
         }
         private string CreateErrorMessage(int errorCode)//Check the error code to find any errors that occur.
         {

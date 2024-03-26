@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.UaFx;
 using Opc.UaFx.Client;
+using Org.BouncyCastle.Asn1;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,6 +29,7 @@ namespace DeviceReader
         {
             await InitializeDevices();
             Task deviceErrorTask = Task.Run(WaitForErrorsContinuously);
+            Task deviceProdRate = Task.Run(WaitForRateChangeContinuously);
             await ReadMessagesContinuously();
         }
         private async Task InitializeDevices()
@@ -38,11 +40,18 @@ namespace DeviceReader
                 var deviceClient = DeviceClient.CreateFromConnectionString(connections[i]);
                 await deviceClient.OpenAsync();
 
-                Device device = new Device(deviceClient, devices[i], connections[i]);
-                await device.InitializeTwinOnStart();
+                Device device = new Device(deviceClient, devices[i], connections[i], client);
+                //await device.InitializeTwinOnStart();
+                await device.Initialize();
                 connectedDevices.Add(device);
             }
             Console.WriteLine("Connection success.");
+        }
+        private string CreateGeneralNodeId(Device device) //Creates firts part of nodeId (without data name part)
+        {
+            string deviceName = device.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string nodeId = $"ns=2;s={deviceName}/";
+            return nodeId;
         }
         #region Telemetry
         private async Task ReadMessagesContinuously()
@@ -58,8 +67,7 @@ namespace DeviceReader
         }
         private async Task ReadTelemetryAndSendToDevice(Device device)
         {
-            string deviceName = device.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            string nodeId = $"ns=2;s={deviceName}/";
+            string nodeId = CreateGeneralNodeId(device);
 
             OpcReadNode node = new OpcReadNode(nodeId + "ProductionStatus");
             OpcValue info = client.ReadNode(node);
@@ -109,21 +117,42 @@ namespace DeviceReader
         }
         private async Task ReadErrorsAndSendToDeviceIfOccured(Device device)
         {
-            string deviceName = device.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            string nodeId = $"ns=2;s={deviceName}/";
+            string nodeId = CreateGeneralNodeId(device);
 
             OpcReadNode node = new OpcReadNode(nodeId + "DeviceError");
             OpcValue info = client.ReadNode(node);
             int errorCode = int.Parse(info.ToString());
 
-            if(errorCode != await device.GetOldErrorCode()) 
+            if(errorCode != await device.GetReportedProperty("DeviceError")) 
             {
                 await device.SendErrorEventMessage(errorCode);
             }
         }
         #endregion
         #region Production Rate
+        private async Task WaitForRateChangeContinuously()
+        {
+            while(true)
+            {
+                await Task.Delay(2000);
+                foreach(var device in connectedDevices)
+                {
+                    await ReadProductionRateAndSendChangeToDevice(device); 
+                }
+            }
+        }
+        private async Task ReadProductionRateAndSendChangeToDevice(Device device)
+        {
+            string nodeId = CreateGeneralNodeId(device);
 
+            OpcReadNode node = new OpcReadNode(nodeId + "ProductionRate");
+            OpcValue info = client.ReadNode(node);
+            int rate = int.Parse(info.ToString());
+            if(rate != await device.GetReportedProperty("ProductionRate"))
+            {
+               await device.ReportPropertyToTwin("ProductionRate",rate);
+            }
+        }
         #endregion
     }
 }
