@@ -27,17 +27,8 @@ namespace DeviceReader
         public async Task InitializeClientManager()
         {
             await InitializeDevices();
-            Thread t = new Thread(doSmth);
-            t.Start();
+            Task deviceErrorTask = Task.Run(WaitForErrorsContinuously);
             await ReadMessagesContinuously();
-        }
-        private void doSmth()
-        {
-            while(true)
-            {
-                Console.WriteLine("Waiting for messages...");
-                Thread.Sleep(5000);
-            }
         }
         private async Task InitializeDevices()
         {
@@ -48,10 +39,12 @@ namespace DeviceReader
                 await deviceClient.OpenAsync();
 
                 Device device = new Device(deviceClient, devices[i], connections[i]);
+                await device.InitializeTwinOnStart();
                 connectedDevices.Add(device);
             }
             Console.WriteLine("Connection success.");
         }
+        #region Telemetry
         private async Task ReadMessagesContinuously()
         {
             while(true)
@@ -63,9 +56,9 @@ namespace DeviceReader
                 await Task.Delay(5000);
             }
         }
-        private async Task ReadTelemetryAndSendToDevice(Device virtualDevice)
+        private async Task ReadTelemetryAndSendToDevice(Device device)
         {
-            string deviceName = virtualDevice.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string deviceName = device.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
             string nodeId = $"ns=2;s={deviceName}/";
 
             OpcReadNode node = new OpcReadNode(nodeId + "ProductionStatus");
@@ -99,7 +92,38 @@ namespace DeviceReader
 
             var dataString = JsonConvert.SerializeObject(data);
             Console.WriteLine(dataString);
-            await virtualDevice.SendTelemetryToHub(dataString);
+            await device.SendTelemetryToHub(dataString);
         }
+        #endregion
+        #region Errors
+        private async Task WaitForErrorsContinuously()
+        {
+            while(true)
+            {
+                foreach (var connected in connectedDevices)
+                {
+                    await ReadErrorsAndSendToDeviceIfOccured(connected);
+                }
+                await Task.Delay(2000);
+            }
+        }
+        private async Task ReadErrorsAndSendToDeviceIfOccured(Device device)
+        {
+            string deviceName = device.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string nodeId = $"ns=2;s={deviceName}/";
+
+            OpcReadNode node = new OpcReadNode(nodeId + "DeviceError");
+            OpcValue info = client.ReadNode(node);
+            int errorCode = int.Parse(info.ToString());
+
+            if(errorCode != await device.GetOldErrorCode()) 
+            {
+                await device.SendErrorEventMessage(errorCode);
+            }
+        }
+        #endregion
+        #region Production Rate
+
+        #endregion
     }
 }

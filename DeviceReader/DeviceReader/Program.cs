@@ -4,10 +4,12 @@ using Opc.UaFx.Client;
 using System.Text.RegularExpressions;
 using VirtualDevices;
 using DeviceReader;
+using System.Text;
+
 internal class ProgramEntryPoint
 {
     private static ClientManager clientManager;
-    public static async Task Main(string[] args)
+    internal static async Task Main(string[] args)
     {
         try
         {
@@ -16,7 +18,14 @@ internal class ProgramEntryPoint
                 client.Connect();
                 BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
                 clientManager = new ClientManager(connections, devices, client);
-                await clientManager.InitializeClientManager();
+                try
+                {
+                    await clientManager.InitializeClientManager();
+                }
+                catch (Exception ex) 
+                {
+                    Console.WriteLine("Something bad happened during connection. Please, check your connection strings or server");
+                }
             }
         }
         catch(OpcException ex)
@@ -29,6 +38,10 @@ internal class ProgramEntryPoint
         {
             Console.WriteLine("File \"connectionStrings.txt\" with connection strings not found: ");
             Console.WriteLine("-----------------------");
+            Console.WriteLine(ex.Message);
+        }
+        catch(FileLoadException ex)
+        {
             Console.WriteLine(ex.Message);
         }
     }
@@ -45,7 +58,7 @@ internal class ProgramEntryPoint
         devices = BrowseDevices(client);
         if(devices.Count == 0)
         {
-            Console.WriteLine("Devices not found");
+            throw new FileLoadException("Devices not found");
         }
         else if (devices.Count <= connections.Count)
         {
@@ -53,8 +66,10 @@ internal class ProgramEntryPoint
         }
         else
         {
-            Console.WriteLine("Unable to connect real devices to IoT Hub due to the lack of connection string.");
-            Console.WriteLine("Please, open {0} and add {1} connection string(s) and restart this programm", path, devices.Count - connections.Count);
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Unable to connect real devices to IoT Hub due to the lack of connection string.");
+            sb.AppendLine($"Please, open {path} and add {devices.Count - connections.Count} connection string(s) and restart this programm");
+            throw new FileLoadException(sb.ToString());
         }
     }
     private static List<string> ReadConnectionStrings(string path) //method for reading all connection strings to IoT Hub devices
