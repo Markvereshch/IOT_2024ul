@@ -8,7 +8,7 @@ using System.Text;
 
 internal class ProgramEntryPoint
 {
-    private static ClientManager clientManager;
+    private static ClientManager? clientManager;
     internal static async Task Main(string[] args)
     {
         try
@@ -25,6 +25,8 @@ internal class ProgramEntryPoint
                 catch (Exception ex) 
                 {
                     Console.WriteLine("Something bad happened during connection. Please, check your connection strings or server");
+                    Console.WriteLine("-----------------------");
+                    Console.WriteLine(ex.Message);
                 }
             }
         }
