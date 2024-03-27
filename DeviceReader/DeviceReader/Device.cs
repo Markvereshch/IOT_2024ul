@@ -27,6 +27,7 @@ namespace VirtualDevices
         private readonly DeviceClient deviceClient;
         private readonly string connectionString;
         private readonly OpcClient opcClient;
+        private readonly string nodeId;
         public OpcNodeInfo ServerDevice
         {
             get { return serverDevice; }
@@ -39,12 +40,13 @@ namespace VirtualDevices
         {
             get { return connectionString;}
         }
-        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, string connectionString, OpcClient client)
+        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, string connectionString, OpcClient opcClient)
         {
             this.deviceClient = deviceClient;
             this.serverDevice = serverDevice;
             this.connectionString = connectionString;
-            this.opcClient = client;
+            this.opcClient = opcClient;
+            nodeId = CreateDeviceNodeId();
         }
         public void PrintInfo()
         {
@@ -70,8 +72,6 @@ namespace VirtualDevices
         #region Sending Telemetry
         public async Task ReadTelemetryAndSendToHub() //Read all telemetry values and prepare them for sending.
         {
-            string nodeId = CreateDeviceNodeId();
-
             OpcReadNode node = new OpcReadNode(nodeId + "/ProductionStatus");
             OpcValue info = opcClient.ReadNode(node);
             int status = int.Parse(info.ToString());
@@ -141,8 +141,6 @@ namespace VirtualDevices
         }
         private async Task InitializeTwinOnStart()//Initial device twin report
         {
-            var twin = await deviceClient.GetTwinAsync();
-
             var initialReportedProperties = new TwinCollection();
             initialReportedProperties["DeviceError"] = 0;
             initialReportedProperties["ProductionRate"] = 0;
@@ -151,7 +149,6 @@ namespace VirtualDevices
         }
         private async Task DesiredPropertyChanged(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
         {
-            string nodeId = CreateDeviceNodeId();
             if(desiredProperties.Contains("ProductionRate"))
             {
                 Console.WriteLine($"Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
@@ -171,8 +168,6 @@ namespace VirtualDevices
         #region Sending Errors
         public async Task ReadErrorsAndSendToHubIfOccured()//Check whether the error code of the machine has changed or not. If it has, then send the error event.
         {
-            string nodeId = CreateDeviceNodeId();
-
             OpcReadNode node = new OpcReadNode(nodeId + "/DeviceError");
             OpcValue info = opcClient.ReadNode(node);
             int errorCode = int.Parse(info.ToString());
@@ -184,10 +179,11 @@ namespace VirtualDevices
         }
         private async Task SendErrorEventMessage(int errorCode)//Send a message with occured error
         {
-            string deviceName = this.ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
             var data = new
             {
-                deviceError = $"The error code of {deviceName} has changed! Current error code is {errorCode}:" + CreateErrorMessage(errorCode)
+                deviceError = $"The error code of {deviceName} has changed! Current errors:" + CreateErrorMessage(errorCode),
+                currentErrorCode = errorCode,
             };
             var dataString = JsonConvert.SerializeObject(data);
             Message message = new Message(Encoding.UTF8.GetBytes(dataString));
@@ -231,7 +227,6 @@ namespace VirtualDevices
         #region Direct Methods
         private async Task<MethodResponse> EmergencyStop(MethodRequest request, object userContext)
         {
-            string nodeId = CreateDeviceNodeId();
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/EmergencyStop");
             Console.WriteLine("EmergencyStop method executed:");
             if(result != null) 
@@ -239,11 +234,11 @@ namespace VirtualDevices
                 foreach (object o in result)
                     Console.WriteLine(o.ToString());
             }
+            await Task.Delay(100);
             return new MethodResponse(0);
         }
         private async Task<MethodResponse> ResetErrorStatus(MethodRequest request, object userContext)
         {
-            string nodeId = CreateDeviceNodeId();
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/ResetErrorStatus");
             Console.WriteLine("ResetErrorStatus method executed:");
             if (result != null)
@@ -251,19 +246,19 @@ namespace VirtualDevices
                 foreach (object o in result)
                     Console.WriteLine(o.ToString());
             }
+            await Task.Delay(100);
             return new MethodResponse(0);
         }
         private async Task<MethodResponse> DefaultMethod(MethodRequest request, object userContext)
         {
             Console.WriteLine("An unknown method was received");
+            await Task.Delay(100);
             return new MethodResponse(0);
         }
         #endregion
         #region Sending Production Rate
         public async Task ReadProductionRateAndSendChangeToHub() //Read current production rate on the machine and report to twin if it has changed
         {
-            string nodeId = CreateDeviceNodeId();
-
             OpcReadNode node = new OpcReadNode(nodeId + "/ProductionRate");
             OpcValue info = opcClient.ReadNode(node);
             int rate = int.Parse(info.ToString());

@@ -13,7 +13,9 @@ internal class ProgramEntryPoint
     {
         try
         {
-            using (var client = new OpcClient("opc.tcp://localhost:4840/"))
+            Console.WriteLine("Enter URL of your OPC UA server:");
+            string? input = Console.ReadLine();
+            using (var client = new OpcClient(input))
             {
                 client.Connect();
                 BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
@@ -43,6 +45,14 @@ internal class ProgramEntryPoint
             Console.WriteLine(ex.Message);
         }
         catch(FileLoadException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        catch(UriFormatException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        catch(ArgumentException ex)
         {
             Console.WriteLine(ex.Message);
         }

@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "43+LJI9806T1h/rNGI0W+2rtqL7ywQRPjuhO3vf6Q/8r+RyG8gXJjfttHT1u7jsvcs5VP4pKhtf0GqilBo4Gdg==",
+  "dgSpecHash": "VQbZUo6kKWP/7SgiMJNwA52Miv3MqwNVlrMd532lXugguQOAszhWi6LLG/sDlcCrRRJHD6vPGtZ4E0lt40DVXg==",
   "success": true,
-  "projectFilePath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\DeviceReader.csproj",
+  "projectFilePath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\AgentApp.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\TimMark\\.nuget\\packages\\azure.core\\1.36.0\\azure.core.1.36.0.nupkg.sha512",
     "C:\\Users\\TimMark\\.nuget\\packages\\azure.storage.blobs\\12.19.1\\azure.storage.blobs.12.19.1.nupkg.sha512",
