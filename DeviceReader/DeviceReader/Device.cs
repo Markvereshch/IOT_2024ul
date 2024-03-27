@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.UaFx;
 using Opc.UaFx.Client;
+using Org.BouncyCastle.Asn1.IsisMtt.X509;
 using System.Net.Mime;
 using System.Text;
 
@@ -25,7 +26,7 @@ namespace VirtualDevices
         private readonly OpcNodeInfo serverDevice;
         private readonly DeviceClient deviceClient;
         private readonly string connectionString;
-        private readonly OpcClient client;
+        private readonly OpcClient opcClient;
         public OpcNodeInfo ServerDevice
         {
             get { return serverDevice; }
@@ -43,35 +44,52 @@ namespace VirtualDevices
             this.deviceClient = deviceClient;
             this.serverDevice = serverDevice;
             this.connectionString = connectionString;
-            this.client = client;
+            this.opcClient = client;
         }
         public void PrintInfo()
         {
             Console.WriteLine($"Device '{serverDevice.Attribute(OpcAttribute.DisplayName).Value}' was connected to {connectionString}");
         }
+        public async Task Initialize() //Initialize handlers and reported twin values
+        {
+            await InitializeTwinOnStart();
+
+            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChanged, deviceClient);
+
+            await deviceClient.SetMethodHandlerAsync("EmergencyStop", EmergencyStop, deviceClient);
+            await deviceClient.SetMethodHandlerAsync("ResetErrorStatus", ResetErrorStatus, deviceClient);
+
+            await deviceClient.SetMethodDefaultHandlerAsync(DefaultMethod, deviceClient);
+        }
+        private string CreateDeviceNodeId()
+        {
+            string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string nodeId = $"ns=2;s={deviceName}";
+            return nodeId;
+        }
         #region Sending Telemetry
         public async Task ReadTelemetryAndSendToHub() //Read all telemetry values and prepare them for sending.
         {
-            string nodeId = CreateGeneralNodeId();
+            string nodeId = CreateDeviceNodeId();
 
-            OpcReadNode node = new OpcReadNode(nodeId + "ProductionStatus");
-            OpcValue info = client.ReadNode(node);
+            OpcReadNode node = new OpcReadNode(nodeId + "/ProductionStatus");
+            OpcValue info = opcClient.ReadNode(node);
             int status = int.Parse(info.ToString());
 
-            node = new OpcReadNode(nodeId + "WorkorderId");
-            info = client.ReadNode(node);
+            node = new OpcReadNode(nodeId + "/WorkorderId");
+            info = opcClient.ReadNode(node);
             string id = info.ToString();
 
-            node = new OpcReadNode(nodeId + "GoodCount");
-            info = client.ReadNode(node);
+            node = new OpcReadNode(nodeId + "/GoodCount");
+            info = opcClient.ReadNode(node);
             int good = int.Parse(info.ToString());
 
-            node = new OpcReadNode(nodeId + "BadCount");
-            info = client.ReadNode(node);
+            node = new OpcReadNode(nodeId + "/BadCount");
+            info = opcClient.ReadNode(node);
             int bad = int.Parse(info.ToString());
 
-            node = new OpcReadNode(nodeId + "Temperature");
-            info = client.ReadNode(node);
+            node = new OpcReadNode(nodeId + "/Temperature");
+            info = opcClient.ReadNode(node);
             double temp = double.Parse(info.ToString());
 
             var data = new
@@ -121,11 +139,6 @@ namespace VirtualDevices
             }
             await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
         }
-        public async Task Initialize()
-        {
-            await InitializeTwinOnStart();
-            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChanged, deviceClient);
-        }
         private async Task InitializeTwinOnStart()//Initial device twin report
         {
             var twin = await deviceClient.GetTwinAsync();
@@ -138,14 +151,14 @@ namespace VirtualDevices
         }
         private async Task DesiredPropertyChanged(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
         {
-            string nodeId = CreateGeneralNodeId();
+            string nodeId = CreateDeviceNodeId();
             if(desiredProperties.Contains("ProductionRate"))
             {
                 Console.WriteLine($"Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
 
                 int value = (int)desiredProperties["ProductionRate"];
                 await ReportPropertyToTwin("ProductionRate", value);
-                OpcStatus result = client.WriteNode(nodeId + "ProductionRate", value);
+                OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", value);
 
                 Console.WriteLine(result.ToString());
             }
@@ -158,10 +171,10 @@ namespace VirtualDevices
         #region Sending Errors
         public async Task ReadErrorsAndSendToHubIfOccured()//Check whether the error code of the machine has changed or not. If it has, then send the error event.
         {
-            string nodeId = CreateGeneralNodeId();
+            string nodeId = CreateDeviceNodeId();
 
-            OpcReadNode node = new OpcReadNode(nodeId + "DeviceError");
-            OpcValue info = client.ReadNode(node);
+            OpcReadNode node = new OpcReadNode(nodeId + "/DeviceError");
+            OpcValue info = opcClient.ReadNode(node);
             int errorCode = int.Parse(info.ToString());
 
             if (errorCode != await GetReportedProperty("DeviceError"))
@@ -195,7 +208,7 @@ namespace VirtualDevices
             }
             else
             {
-                if(error.HasFlag(DeviceErrors.EmergencyStop))
+                if (error.HasFlag(DeviceErrors.EmergencyStop))
                 {
                     sb.Append("'Emergency Stop' ");
                 }
@@ -215,23 +228,50 @@ namespace VirtualDevices
             return sb.ToString().Trim();
         }
         #endregion
-        private string CreateGeneralNodeId() //Creates the firts part of the nodeId (without the data name part)
+        #region Direct Methods
+        private async Task<MethodResponse> EmergencyStop(MethodRequest request, object userContext)
         {
-            string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            string nodeId = $"ns=2;s={deviceName}/";
-            return nodeId;
+            string nodeId = CreateDeviceNodeId();
+            object[] result = opcClient.CallMethod(nodeId, nodeId + "/EmergencyStop");
+            Console.WriteLine("EmergencyStop method executed:");
+            if(result != null) 
+            {
+                foreach (object o in result)
+                    Console.WriteLine(o.ToString());
+            }
+            return new MethodResponse(0);
         }
+        private async Task<MethodResponse> ResetErrorStatus(MethodRequest request, object userContext)
+        {
+            string nodeId = CreateDeviceNodeId();
+            object[] result = opcClient.CallMethod(nodeId, nodeId + "/ResetErrorStatus");
+            Console.WriteLine("ResetErrorStatus method executed:");
+            if (result != null)
+            {
+                foreach (object o in result)
+                    Console.WriteLine(o.ToString());
+            }
+            return new MethodResponse(0);
+        }
+        private async Task<MethodResponse> DefaultMethod(MethodRequest request, object userContext)
+        {
+            Console.WriteLine("An unknown method was received");
+            return new MethodResponse(0);
+        }
+        #endregion
+        #region Sending Production Rate
         public async Task ReadProductionRateAndSendChangeToHub() //Read current production rate on the machine and report to twin if it has changed
         {
-            string nodeId = CreateGeneralNodeId();
+            string nodeId = CreateDeviceNodeId();
 
-            OpcReadNode node = new OpcReadNode(nodeId + "ProductionRate");
-            OpcValue info = client.ReadNode(node);
+            OpcReadNode node = new OpcReadNode(nodeId + "/ProductionRate");
+            OpcValue info = opcClient.ReadNode(node);
             int rate = int.Parse(info.ToString());
             if (rate != await GetReportedProperty("ProductionRate"))
             {
                 await ReportPropertyToTwin("ProductionRate", rate);
             }
         }
+        #endregion
     }
 }
