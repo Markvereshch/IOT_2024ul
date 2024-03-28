@@ -187,15 +187,16 @@ namespace VirtualDevices
             OpcValue info = opcClient.ReadNode(node);
             int errorCode = int.Parse(info.ToString());
 
-            if (errorCode != await GetReportedProperty("DeviceError"))
+            int reportedErrorCode = await GetReportedProperty("DeviceError");
+            if (errorCode != reportedErrorCode)
             {
-                await SendErrorEventMessage(errorCode);
+                await SendErrorEventMessage(errorCode, reportedErrorCode);
             }
         }
-        private async Task SendErrorEventMessage(int errorCode)//Send a message with occured error
+        private async Task SendErrorEventMessage(int errorCode, int reportedErrorCode)//Send a message with occured error
         {
             string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            string errorname = await FindNewOccuredError(errorCode);
+            string errorname = FindNewOccuredError(errorCode, reportedErrorCode);
             var data = new
             {
                 errorName = errorname,
@@ -212,9 +213,8 @@ namespace VirtualDevices
             await deviceClient.SendEventAsync(message);
             await ReportPropertyToTwin("DeviceError", errorCode);
         }
-        private async Task<string> FindNewOccuredError(int errorCode)
+        private string FindNewOccuredError(int errorCode, int oldErrorCode)
         {
-            int oldErrorCode = await GetReportedProperty("DeviceError");
             int difference = errorCode - oldErrorCode;
             if (difference <= 0)
                 return "None";
