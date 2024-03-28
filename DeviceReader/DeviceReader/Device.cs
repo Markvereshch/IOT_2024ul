@@ -3,6 +3,7 @@ using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Opc.Ua;
 using Opc.UaFx;
 using Opc.UaFx.Client;
@@ -92,8 +93,10 @@ namespace VirtualDevices
             info = opcClient.ReadNode(node);
             double temp = double.Parse(info.ToString());
 
+            string name = serverDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
             var data = new
             {
+                deviceId = name,
                 productionStatus = status,
                 workorderId = id,
                 goodCount = good,
@@ -139,13 +142,25 @@ namespace VirtualDevices
             }
             await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
         }
-        private async Task InitializeTwinOnStart()//Initial device twin report
+        private async Task InitializeTwinOnStart()//Initialize the reported device twin and set the ProductionRate to the value from the desired device twin.
         {
+            int desiredInitialRate = await ReadDesiredRateIfExists();
+            OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", desiredInitialRate);
+
             var initialReportedProperties = new TwinCollection();
             initialReportedProperties["DeviceError"] = 0;
-            initialReportedProperties["ProductionRate"] = 0;
+            initialReportedProperties["ProductionRate"] = desiredInitialRate;
+
+            Console.WriteLine("Initial production rate of '{0}', which is determined by the Desired DT, is {1}", nodeId, desiredInitialRate);
 
             await deviceClient.UpdateReportedPropertiesAsync(initialReportedProperties);
+        }
+        private async Task<int> ReadDesiredRateIfExists() //Read the desired production rate or return 0
+        {
+            var desired = await deviceClient.GetTwinAsync();
+            var desiredProperties = desired.Properties.Desired;
+            var rate = desiredProperties.Contains("ProductionRate") ? desiredProperties["ProductionRate"] : 0;
+            return rate;
         }
         private async Task DesiredPropertyChanged(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
         {
@@ -180,9 +195,12 @@ namespace VirtualDevices
         private async Task SendErrorEventMessage(int errorCode)//Send a message with occured error
         {
             string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            string errorname = await FindNewOccuredError(errorCode);
             var data = new
             {
-                deviceError = $"The error code of {deviceName} has changed! Current errors:" + CreateErrorMessage(errorCode),
+                errorName = errorname,
+                deviceId = deviceName,
+                currentErrors = CreateErrorMessage(errorCode),
                 currentErrorCode = errorCode,
             };
             var dataString = JsonConvert.SerializeObject(data);
@@ -193,6 +211,15 @@ namespace VirtualDevices
             Console.WriteLine(dataString);
             await deviceClient.SendEventAsync(message);
             await ReportPropertyToTwin("DeviceError", errorCode);
+        }
+        private async Task<string> FindNewOccuredError(int errorCode)
+        {
+            int oldErrorCode = await GetReportedProperty("DeviceError");
+            int difference = errorCode - oldErrorCode;
+            if (difference <= 0)
+                return "None";
+            string errorName = ((DeviceErrors)difference).ToString();
+            return errorName;
         }
         private string CreateErrorMessage(int errorCode)//Check the error code to find any errors that occur.
         {
@@ -228,7 +255,7 @@ namespace VirtualDevices
         private async Task<MethodResponse> EmergencyStop(MethodRequest request, object userContext)
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/EmergencyStop");
-            Console.WriteLine("EmergencyStop method executed:");
+            Console.WriteLine("EmergencyStop method executed on {0}", nodeId);
             if(result != null) 
             {
                 foreach (object o in result)
@@ -240,7 +267,7 @@ namespace VirtualDevices
         private async Task<MethodResponse> ResetErrorStatus(MethodRequest request, object userContext)
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/ResetErrorStatus");
-            Console.WriteLine("ResetErrorStatus method executed:");
+            Console.WriteLine("ResetErrorStatus method executed on {0}", nodeId);
             if (result != null)
             {
                 foreach (object o in result)
@@ -251,7 +278,7 @@ namespace VirtualDevices
         }
         private async Task<MethodResponse> DefaultMethod(MethodRequest request, object userContext)
         {
-            Console.WriteLine("An unknown method was received");
+            Console.WriteLine("An unknown method was received on {0}", nodeId);
             await Task.Delay(100);
             return new MethodResponse(0);
         }
