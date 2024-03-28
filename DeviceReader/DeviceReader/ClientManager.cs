@@ -16,7 +16,7 @@ namespace DeviceReader
     internal class ClientManager
     {
         private const int telemetryReadingDelay = 5000;
-        private const int errorReadingDelay = 1;
+        private const int errorReadingDelay = 2000;
         private const int productionRateReadingDelay = 2000;
 
         private readonly List<string> connections;
