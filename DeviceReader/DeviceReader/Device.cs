@@ -49,10 +49,6 @@ namespace VirtualDevices
             this.opcClient = opcClient;
             nodeId = CreateDeviceNodeId();
         }
-        public void PrintInfo()
-        {
-            Console.WriteLine($"Device '{serverDevice.Attribute(OpcAttribute.DisplayName).Value}' was connected to {connectionString}");
-        }
         public async Task Initialize() //Initialize handlers and reported twin values
         {
             await InitializeTwinOnStart();
@@ -70,28 +66,24 @@ namespace VirtualDevices
             string nodeId = $"ns=2;s={deviceName}";
             return nodeId;
         }
-        #region Sending Telemetry
-        public async Task ReadTelemetryAndSendToHub() //Read all telemetry values and prepare them for sending.
+        private string ReadDeviceNode(string name)
         {
-            OpcReadNode node = new OpcReadNode(nodeId + "/ProductionStatus");
+            OpcReadNode node = new OpcReadNode(nodeId + name);
             OpcValue info = opcClient.ReadNode(node);
-            int status = int.Parse(info.ToString());
+            return info.ToString();
+        }
+        #region Sending Telemetry
+        public async Task ReadTelemetryAndSendToHub() //Read all content values and prepare them for sending.
+        {
+            int status = int.Parse(ReadDeviceNode("/ProductionStatus"));
 
-            node = new OpcReadNode(nodeId + "/WorkorderId");
-            info = opcClient.ReadNode(node);
-            string id = info.ToString();
+            string id = ReadDeviceNode("/WorkorderId");
 
-            node = new OpcReadNode(nodeId + "/GoodCount");
-            info = opcClient.ReadNode(node);
-            int good = int.Parse(info.ToString());
+            int good = int.Parse(ReadDeviceNode("/GoodCount"));
 
-            node = new OpcReadNode(nodeId + "/BadCount");
-            info = opcClient.ReadNode(node);
-            int bad = int.Parse(info.ToString());
+            int bad = int.Parse(ReadDeviceNode("/BadCount"));
 
-            node = new OpcReadNode(nodeId + "/Temperature");
-            info = opcClient.ReadNode(node);
-            double temp = double.Parse(info.ToString());
+            double temp = double.Parse(ReadDeviceNode("/Temperature"));
 
             string name = serverDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
             var data = new
@@ -105,12 +97,12 @@ namespace VirtualDevices
             };
 
             var dataString = JsonConvert.SerializeObject(data);
-            Console.WriteLine(dataString);
-            await SendTelemetryToHub(dataString);
+            await SendMessageToHub(dataString);
         }
-        private async Task SendTelemetryToHub(string telemetry) //Send D2C message
+        private async Task SendMessageToHub(string content) //Send D2C message
         {
-            Message message = new Message(Encoding.UTF8.GetBytes(telemetry));
+            Console.WriteLine(content);
+            Message message = new Message(Encoding.UTF8.GetBytes(content));
             message.ContentType = MediaTypeNames.Application.Json;
             message.ContentEncoding = "utf-8";
             await deviceClient.SendEventAsync(message);
@@ -183,9 +175,7 @@ namespace VirtualDevices
         #region Sending Errors
         public async Task ReadErrorsAndSendToHubIfOccured()//Check whether the error code of the machine has changed or not. If it has, then send the error event.
         {
-            OpcReadNode node = new OpcReadNode(nodeId + "/DeviceError");
-            OpcValue info = opcClient.ReadNode(node);
-            int errorCode = int.Parse(info.ToString());
+            int errorCode = int.Parse(ReadDeviceNode("/DeviceError"));
 
             int reportedErrorCode = await GetReportedProperty("DeviceError");
             if (errorCode != reportedErrorCode)
@@ -205,12 +195,8 @@ namespace VirtualDevices
                 currentErrorCode = errorCode,
             };
             var dataString = JsonConvert.SerializeObject(data);
-            Message message = new Message(Encoding.UTF8.GetBytes(dataString));
-            message.ContentType = MediaTypeNames.Application.Json;
-            message.ContentEncoding = "utf-8";
 
-            Console.WriteLine(dataString);
-            await deviceClient.SendEventAsync(message);
+            await SendMessageToHub(dataString);
             await ReportPropertyToTwin("DeviceError", errorCode);
         }
         private string FindNewOccuredError(int errorCode, int oldErrorCode)
@@ -286,9 +272,8 @@ namespace VirtualDevices
         #region Sending Production Rate
         public async Task ReadProductionRateAndSendChangeToHub() //Read current production rate on the machine and report to twin if it has changed
         {
-            OpcReadNode node = new OpcReadNode(nodeId + "/ProductionRate");
-            OpcValue info = opcClient.ReadNode(node);
-            int rate = int.Parse(info.ToString());
+            int rate = int.Parse(ReadDeviceNode("/ProductionRate"));
+
             if (rate != await GetReportedProperty("ProductionRate"))
             {
                 await ReportPropertyToTwin("ProductionRate", rate);

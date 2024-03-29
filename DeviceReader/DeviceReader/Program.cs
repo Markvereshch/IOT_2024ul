@@ -126,37 +126,4 @@ internal class ProgramEntryPoint
         else
             return false;
     }
-    private static void ReadAllNodes_TestMethod(OpcClient client) //Test to read all information from all available devices
-    {
-        var devices = BrowseDevices(client);
-        foreach (var device in devices)
-        {
-            string name = device.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            Console.WriteLine(name + "\n---------------------------------------------->");
-            string nodeId = $"ns=2;s={name}/";
-            OpcReadNode[] commands = new OpcReadNode[] {
-                    new OpcReadNode(nodeId + "ProductionStatus", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "ProductionStatus"),
-                    new OpcReadNode(nodeId + "ProductionRate", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "ProductionRate"),
-                    new OpcReadNode(nodeId + "WorkorderId", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "WorkorderId"),
-                    new OpcReadNode(nodeId + "Temperature", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "Temperature"),
-                    new OpcReadNode(nodeId + "GoodCount", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "GoodCount"),
-                    new OpcReadNode(nodeId + "BadCount", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "BadCount"),
-                    new OpcReadNode(nodeId + "DeviceError", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "DeviceError"),
-                };
-            IEnumerable<OpcValue> job = client.ReadNodes(commands);
-
-            foreach (var item in job)
-            {
-                Console.WriteLine(item.Value);
-            }
-            Console.WriteLine();
-        }
-    }
 }
