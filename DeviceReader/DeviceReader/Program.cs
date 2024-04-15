@@ -4,19 +4,32 @@ using Opc.UaFx.Client;
 using System.Text.RegularExpressions;
 using VirtualDevices;
 using DeviceReader;
-internal class NodeReader
+using System.Text;
+
+internal class ProgramEntryPoint
 {
-    private static ClientManager clientManager;
-    public static async Task Main(string[] args)
+    private static ClientManager? clientManager;
+    internal static async Task Main(string[] args)
     {
         try
         {
-            using (var client = new OpcClient("opc.tcp://localhost:4840/"))
+            Console.WriteLine("Enter URL of your OPC UA server:");
+            string? input = Console.ReadLine();
+            using (var client = new OpcClient(input))
             {
                 client.Connect();
                 BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
-                clientManager = new ClientManager(connections, devices);
-                await clientManager.TestMethod();
+                clientManager = new ClientManager(connections, devices, client);
+                try
+                {
+                    await clientManager.InitializeClientManager();
+                }
+                catch (Exception ex) 
+                {
+                    Console.WriteLine("Something bad happened during connection. Please, check your connection strings or server");
+                    Console.WriteLine("-----------------------");
+                    Console.WriteLine(ex.Message);
+                }
             }
         }
         catch(OpcException ex)
@@ -29,6 +42,18 @@ internal class NodeReader
         {
             Console.WriteLine("File \"connectionStrings.txt\" with connection strings not found: ");
             Console.WriteLine("-----------------------");
+            Console.WriteLine(ex.Message);
+        }
+        catch(FileLoadException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        catch(UriFormatException ex)
+        {
+            Console.WriteLine(ex.Message);
+        }
+        catch(ArgumentException ex)
+        {
             Console.WriteLine(ex.Message);
         }
     }
@@ -45,7 +70,7 @@ internal class NodeReader
         devices = BrowseDevices(client);
         if(devices.Count == 0)
         {
-            Console.WriteLine("Devices not found");
+            throw new FileLoadException("Devices not found");
         }
         else if (devices.Count <= connections.Count)
         {
@@ -53,8 +78,10 @@ internal class NodeReader
         }
         else
         {
-            Console.WriteLine("Unable to connect real devices to IoT Hub due to the lack of connection string.");
-            Console.WriteLine("Please, open {0} and add {1} connection string(s) and restart this programm", path, devices.Count - connections.Count);
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Unable to connect real devices to IoT Hub due to the lack of connection string.");
+            sb.AppendLine($"Please, open {path} and add {devices.Count - connections.Count} connection string(s) and restart this programm");
+            throw new FileLoadException(sb.ToString());
         }
     }
     private static List<string> ReadConnectionStrings(string path) //method for reading all connection strings to IoT Hub devices
@@ -88,7 +115,7 @@ internal class NodeReader
         }
         return devices;
     }
-    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is device node or not
+    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is serverDevice node or not
     {
         string pattern = @"^Device [0-9]+$";
         Regex exp = new Regex(pattern);
@@ -98,38 +125,5 @@ internal class NodeReader
             return true;
         else
             return false;
-    }
-    private static void TestMethod(OpcClient client) //Test to read all information from all available devices
-    {
-        var devices = BrowseDevices(client);
-        foreach (var device in devices)
-        {
-            string name = device.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            Console.WriteLine(name + "\n---------------------------------------------->");
-            string nodeId = $"ns=2;s={name}/";
-            OpcReadNode[] commands = new OpcReadNode[] {
-                    new OpcReadNode(nodeId + "ProductionStatus", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "ProductionStatus"),
-                    new OpcReadNode(nodeId + "ProductionRate", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "ProductionRate"),
-                    new OpcReadNode(nodeId + "WorkorderId", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "WorkorderId"),
-                    new OpcReadNode(nodeId + "Temperature", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "Temperature"),
-                    new OpcReadNode(nodeId + "GoodCount", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "GoodCount"),
-                    new OpcReadNode(nodeId + "BadCount", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "BadCount"),
-                    new OpcReadNode(nodeId + "DeviceError", OpcAttribute.DisplayName),
-                    new OpcReadNode(nodeId + "DeviceError"),
-                };
-            IEnumerable<OpcValue> job = client.ReadNodes(commands);
-
-            foreach (var item in job)
-            {
-                Console.WriteLine(item.Value);
-            }
-            Console.WriteLine();
-        }
     }
 }

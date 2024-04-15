@@ -1882,9 +1882,9 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\DeviceReader.csproj",
-      "projectName": "DeviceReader",
-      "projectPath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\DeviceReader.csproj",
+      "projectUniqueName": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\AgentApp.csproj",
+      "projectName": "AgentApp",
+      "projectPath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\AgentApp.csproj",
       "packagesPath": "C:\\Users\\TimMark\\.nuget\\packages\\",
       "outputPath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\obj\\",
       "projectStyle": "PackageReference",
