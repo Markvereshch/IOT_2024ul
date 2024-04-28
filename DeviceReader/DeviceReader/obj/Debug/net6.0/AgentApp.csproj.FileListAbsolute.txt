@@ -49,3 +49,4 @@ C:\IoT\MyProject\DeviceReader\DeviceReader\obj\Debug\net6.0\refint\AgentApp.dll
 C:\IoT\MyProject\DeviceReader\DeviceReader\obj\Debug\net6.0\AgentApp.pdb
 C:\IoT\MyProject\DeviceReader\DeviceReader\obj\Debug\net6.0\AgentApp.genruntimeconfig.cache
 C:\IoT\MyProject\DeviceReader\DeviceReader\obj\Debug\net6.0\ref\AgentApp.dll
+C:\IoT\MyProject\DeviceReader\DeviceReader\bin\Debug\net6.0\Azure.Communication.Email.dll

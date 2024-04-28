@@ -1,4 +1,5 @@
-﻿using DeviceReader;
+﻿using AgentApp;
+using DeviceReader;
 using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
@@ -49,11 +50,11 @@ namespace VirtualDevices
             this.opcClient = opcClient;
             nodeId = CreateDeviceNodeId();
         }
-        public async Task Initialize() //Initialize handlers and reported twin values
+        public async Task InitializeHandlersAsync() //Initialize handlers and reported twin values
         {
-            await InitializeTwinOnStart();
+            await InitializeTwinOnStartAsync();
 
-            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChanged, deviceClient);
+            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChangedAsync, deviceClient);
 
             await deviceClient.SetMethodHandlerAsync("EmergencyStop", EmergencyStop, deviceClient);
             await deviceClient.SetMethodHandlerAsync("ResetErrorStatus", ResetErrorStatus, deviceClient);
@@ -73,7 +74,7 @@ namespace VirtualDevices
             return info.ToString();
         }
         #region Sending Telemetry
-        public async Task ReadTelemetryAndSendToHub() //Read all content values and prepare them for sending.
+        public async Task ReadTelemetryAndSendToHubAsync() //Read all content values and prepare them for sending.
         {
             int status = int.Parse(ReadDeviceNode("/ProductionStatus"));
 
@@ -88,7 +89,7 @@ namespace VirtualDevices
             string name = serverDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
             var data = new
             {
-                deviceId = name,
+                deviceName = name,
                 productionStatus = status,
                 workorderId = id,
                 goodCount = good,
@@ -97,9 +98,9 @@ namespace VirtualDevices
             };
 
             var dataString = JsonConvert.SerializeObject(data);
-            await SendMessageToHub(dataString);
+            await SendMessageToHubAsync(dataString);
         }
-        private async Task SendMessageToHub(string content) //Send D2C message
+        private async Task SendMessageToHubAsync(string content) //Send D2C message
         {
             Console.WriteLine(content);
             Message message = new Message(Encoding.UTF8.GetBytes(content));
@@ -109,7 +110,7 @@ namespace VirtualDevices
         }
         #endregion
         #region Device Twin
-        public async Task<int> GetReportedProperty(string name)//Get a DeviceError or ProductionRate properties
+        public async Task<int> GetReportedPropertyAsync(string name)//Get a DeviceError or ProductionRate properties
         {
             try
             {
@@ -123,7 +124,7 @@ namespace VirtualDevices
                 return 0;
             }
         }
-        public async Task ReportPropertyToTwin(string propertyName, int value)//Report a ProductionRate or DeviceError to the device twin
+        public async Task ReportPropertyToTwinAsync(string propertyName, int value)//Report a ProductionRate or DeviceError to the device twin
         {
             var reportedProperties = new TwinCollection();
             reportedProperties[propertyName] = value;
@@ -134,9 +135,9 @@ namespace VirtualDevices
             }
             await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
         }
-        private async Task InitializeTwinOnStart()//Initialize the reported device twin and set the ProductionRate to the value from the desired device twin.
+        private async Task InitializeTwinOnStartAsync()//InitializeHandlersAsync the reported device twin and set the ProductionRate to the value from the desired device twin.
         {
-            int desiredInitialRate = await ReadDesiredRateIfExists();
+            int desiredInitialRate = await ReadDesiredRateIfExistsAsync();
             OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", desiredInitialRate);
 
             var initialReportedProperties = new TwinCollection();
@@ -147,22 +148,22 @@ namespace VirtualDevices
 
             await deviceClient.UpdateReportedPropertiesAsync(initialReportedProperties);
         }
-        private async Task<int> ReadDesiredRateIfExists() //Read the desired production rate or return 0
+        private async Task<int> ReadDesiredRateIfExistsAsync() //Read the desired production rate or return 0
         {
             var desired = await deviceClient.GetTwinAsync();
             var desiredProperties = desired.Properties.Desired;
             var rate = desiredProperties.Contains("ProductionRate") ? desiredProperties["ProductionRate"] : 0;
             return rate;
         }
-        private async Task DesiredPropertyChanged(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
+        private async Task DesiredPropertyChangedAsync(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
         {
             if(desiredProperties.Contains("ProductionRate"))
             {
                 Console.WriteLine($"Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
 
-                int value = (int)desiredProperties["ProductionRate"];
-                await ReportPropertyToTwin("ProductionRate", value);
-                OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", value);
+                int rate = (int)desiredProperties["ProductionRate"];
+                await ReportPropertyToTwinAsync("ProductionRate", rate);
+                OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", rate);
 
                 Console.WriteLine(result.ToString());
             }
@@ -173,39 +174,74 @@ namespace VirtualDevices
         }
         #endregion
         #region Sending Errors
-        public async Task ReadErrorsAndSendToHubIfOccured()//Check whether the error code of the machine has changed or not. If it has, then send the error event.
+        public async Task ReadErrorsAndSendToHubIfOccuredAsync()//Check whether the error code of the machine has changed or not. If it has, then send the error event.
         {
             int errorCode = int.Parse(ReadDeviceNode("/DeviceError"));
 
-            int reportedErrorCode = await GetReportedProperty("DeviceError");
+            int reportedErrorCode = await GetReportedPropertyAsync("DeviceError");
             if (errorCode != reportedErrorCode)
             {
-                await SendErrorEventMessage(errorCode, reportedErrorCode);
+                await SendErrorEventMessageAsync(errorCode, reportedErrorCode);
             }
         }
-        private async Task SendErrorEventMessage(int errorCode, int reportedErrorCode)//Send a message with occured error
+        private async Task SendErrorEventMessageAsync(int errorCode, int reportedErrorCode)//Send a message with occured error
         {
-            string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            string errorname = FindNewOccuredError(errorCode, reportedErrorCode);
+            string serverDeviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
+            int newFoundErrors = FindTheNumberOfNewErrors(errorCode, reportedErrorCode);
             var data = new
             {
-                errorName = errorname,
-                deviceId = deviceName,
+                errorName = FindTheNameOfOccuredErrors(errorCode, reportedErrorCode),
+                newErrors = newFoundErrors,
+                deviceName = serverDeviceName,
                 currentErrors = CreateErrorMessage(errorCode),
                 currentErrorCode = errorCode,
             };
             var dataString = JsonConvert.SerializeObject(data);
 
-            await SendMessageToHub(dataString);
-            await ReportPropertyToTwin("DeviceError", errorCode);
+            await SendMessageToHubAsync(dataString);
+
+            if(newFoundErrors != 0)
+            {
+                await EmailSender.SendErrorMessageToEmailsAsync(dataString);
+            }
+
+            await ReportPropertyToTwinAsync("DeviceError", errorCode);
         }
-        private string FindNewOccuredError(int errorCode, int oldErrorCode)
+        private string FindTheNameOfOccuredErrors(int errorCode, int reportedErrorCode)
         {
-            int difference = errorCode - oldErrorCode;
+            int difference = errorCode - reportedErrorCode;
             if (difference <= 0)
+            {
                 return "None";
+            }
             string errorName = ((DeviceErrors)difference).ToString();
             return errorName;
+        }
+        private int FindTheNumberOfNewErrors(int errorCode, int reportedErrorCode)
+        {
+            int difference = errorCode - reportedErrorCode;
+            int numberOfErrors = 0;
+            DeviceErrors error = (DeviceErrors)difference;
+            if (difference > 0)
+            {
+                if (error.HasFlag(DeviceErrors.EmergencyStop))
+                {
+                    numberOfErrors += 1;
+                }
+                if (error.HasFlag(DeviceErrors.PowerFailure))
+                {
+                    numberOfErrors += 1; 
+                }
+                if (error.HasFlag(DeviceErrors.SensorFailure))
+                {
+                    numberOfErrors += 1;
+                }
+                if (error.HasFlag(DeviceErrors.Unknown))
+                {
+                    numberOfErrors += 1;
+                }
+            }
+            return numberOfErrors;
         }
         private string CreateErrorMessage(int errorCode)//Check the error code to find any errors that occur.
         {
@@ -242,11 +278,6 @@ namespace VirtualDevices
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/EmergencyStop");
             Console.WriteLine("EmergencyStop method executed on {0}", nodeId);
-            if(result != null) 
-            {
-                foreach (object o in result)
-                    Console.WriteLine(o.ToString());
-            }
             await Task.Delay(100);
             return new MethodResponse(0);
         }
@@ -254,11 +285,6 @@ namespace VirtualDevices
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/ResetErrorStatus");
             Console.WriteLine("ResetErrorStatus method executed on {0}", nodeId);
-            if (result != null)
-            {
-                foreach (object o in result)
-                    Console.WriteLine(o.ToString());
-            }
             await Task.Delay(100);
             return new MethodResponse(0);
         }
@@ -270,13 +296,13 @@ namespace VirtualDevices
         }
         #endregion
         #region Sending Production Rate
-        public async Task ReadProductionRateAndSendChangeToHub() //Read current production rate on the machine and report to twin if it has changed
+        public async Task ReadProductionRateAndSendChangeToHubAsync() //Read current production rate on the machine and report to twin if it has changed
         {
             int rate = int.Parse(ReadDeviceNode("/ProductionRate"));
 
-            if (rate != await GetReportedProperty("ProductionRate"))
+            if (rate != await GetReportedPropertyAsync("ProductionRate"))
             {
-                await ReportPropertyToTwin("ProductionRate", rate);
+                await ReportPropertyToTwinAsync("ProductionRate", rate);
             }
         }
         #endregion

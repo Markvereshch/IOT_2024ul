@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "VQbZUo6kKWP/7SgiMJNwA52Miv3MqwNVlrMd532lXugguQOAszhWi6LLG/sDlcCrRRJHD6vPGtZ4E0lt40DVXg==",
+  "dgSpecHash": "huelc3mpP4eilzySpeQIbYJv79xAW1goGeWkK35txp1PQfX8BBgooQFsxLsOYRpajQ4Pf7R9aomJPcCykUOoUg==",
   "success": true,
   "projectFilePath": "C:\\IoT\\MyProject\\DeviceReader\\DeviceReader\\AgentApp.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\TimMark\\.nuget\\packages\\azure.communication.email\\1.0.1\\azure.communication.email.1.0.1.nupkg.sha512",
     "C:\\Users\\TimMark\\.nuget\\packages\\azure.core\\1.36.0\\azure.core.1.36.0.nupkg.sha512",
     "C:\\Users\\TimMark\\.nuget\\packages\\azure.storage.blobs\\12.19.1\\azure.storage.blobs.12.19.1.nupkg.sha512",
     "C:\\Users\\TimMark\\.nuget\\packages\\azure.storage.common\\12.18.1\\azure.storage.common.12.18.1.nupkg.sha512",

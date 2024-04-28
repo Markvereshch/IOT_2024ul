@@ -45,7 +45,7 @@ namespace DeviceReader
                 await deviceClient.OpenAsync();
 
                 Device device = new Device(deviceClient, devices[i], connections[i], client);
-                await device.Initialize();
+                await device.InitializeHandlersAsync();
                 connectedDevices.Add(device);
             }
             Console.WriteLine("Connection success.");
@@ -56,7 +56,7 @@ namespace DeviceReader
             {
                 foreach (var device in connectedDevices)
                 {
-                    await device.ReadTelemetryAndSendToHub();
+                    await device.ReadTelemetryAndSendToHubAsync();
                 }
                 await Task.Delay(telemetryReadingDelay);
             }
@@ -67,7 +67,7 @@ namespace DeviceReader
             {
                 foreach (var device in connectedDevices)
                 {
-                    await device.ReadErrorsAndSendToHubIfOccured();
+                    await device.ReadErrorsAndSendToHubIfOccuredAsync();
                 }
                 await Task.Delay(errorReadingDelay);
             }
@@ -78,7 +78,7 @@ namespace DeviceReader
             {
                 foreach(var device in connectedDevices)
                 {
-                    await device.ReadProductionRateAndSendChangeToHub(); 
+                    await device.ReadProductionRateAndSendChangeToHubAsync(); 
                 }
                 await Task.Delay(productionRateReadingDelay);
             }

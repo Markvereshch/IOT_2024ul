@@ -79,8 +79,8 @@ internal class ProgramEntryPoint
         else
         {
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Unable to connect real devices to IoT Hub due to the lack of connection string.");
-            sb.AppendLine($"Please, open {path} and add {devices.Count - connections.Count} connection string(s) and restart this programm");
+            sb.AppendLine("Unable to connect real devices to the IoT Hub due to the lack of a connection string.");
+            sb.AppendLine($"Please, open {path} and add {devices.Count - connections.Count} connection string(s), then restart this program");
             throw new FileLoadException(sb.ToString());
         }
     }
