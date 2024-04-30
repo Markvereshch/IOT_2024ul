@@ -5,28 +5,31 @@ using System.Text.RegularExpressions;
 using VirtualDevices;
 using DeviceReader;
 using System.Text;
+using AgentApp;
+using System.IO;
 
-internal class ProgramEntryPoint
+internal static class ProgramEntryPoint
 {
     private static ClientManager? clientManager;
     internal static async Task Main(string[] args)
     {
         try
         {
-            Console.WriteLine("Enter URL of your OPC UA server:");
-            string? input = Console.ReadLine();
-            using (var client = new OpcClient(input))
+            SettingsManager.Menu();
+            using (var client = new OpcClient(AppSettings.GetSettings().ServerConnectionString))
             {
                 client.Connect();
-                BrowseConnectionStringsAndDevices(client, out var connections, out var devices);
+                
+                var connections = AppSettings.GetSettings().AzureDevicesConnectionStrings;
+                var devices = ConnectDevicesWithIoTDevices(client, connections);
                 clientManager = new ClientManager(connections, devices, client);
                 try
                 {
                     await clientManager.InitializeClientManager();
                 }
-                catch (Exception ex) 
+                catch (Exception ex)
                 {
-                    Console.WriteLine("Something bad happened during connection. Please, check your connection strings or server");
+                    Console.WriteLine("Something bad happened during connection. Please, check your connection strings or the OPC UA server.");
                     Console.WriteLine("-----------------------");
                     Console.WriteLine(ex.Message);
                 }
@@ -34,18 +37,8 @@ internal class ProgramEntryPoint
         }
         catch(OpcException ex)
         {
-            Console.WriteLine("The server is offline: ");
+            Console.WriteLine("The server is offline. ");
             Console.WriteLine("-----------------------");
-            Console.WriteLine(ex.Message);
-        }
-        catch(FileNotFoundException ex)
-        {
-            Console.WriteLine("File \"connectionStrings.txt\" with connection strings not found: ");
-            Console.WriteLine("-----------------------");
-            Console.WriteLine(ex.Message);
-        }
-        catch(FileLoadException ex)
-        {
             Console.WriteLine(ex.Message);
         }
         catch(UriFormatException ex)
@@ -54,56 +47,38 @@ internal class ProgramEntryPoint
         }
         catch(ArgumentException ex)
         {
+            Console.WriteLine($"Invalid address to OPC UA server. {ex.Message}");
+        }
+        catch(FileLoadException ex)
+        {
             Console.WriteLine(ex.Message);
         }
-    }
-    private static void BrowseConnectionStringsAndDevices(OpcClient client, out List<string> connections, out List<OpcNodeInfo> devices)
-    {
-        string binDirectory = AppDomain.CurrentDomain.BaseDirectory;
-        string projectDirectory = Directory.GetParent(binDirectory).Parent.Parent.Parent.FullName;
-        string path = Path.Combine(projectDirectory, "connectionStrings.txt");
-        if(!File.Exists(path))
+        catch(Exception ex) 
         {
-            throw new FileNotFoundException(path);
+            Console.WriteLine($"Unknown errror: {ex.Message}");
         }
-        connections = ReadConnectionStrings(path);
+    }
+    private static List<OpcNodeInfo> ConnectDevicesWithIoTDevices(OpcClient client, List<string> connections)
+    {
+        List<OpcNodeInfo> devices = new List<OpcNodeInfo> ();
         devices = BrowseDevices(client);
-        if(devices.Count == 0)
+        if (devices.Count == 0)
         {
-            throw new FileLoadException("Devices not found");
+            throw new FileLoadException("Devices not found.");
         }
         else if (devices.Count <= connections.Count)
         {
             Console.WriteLine("Accessing connection strings...");
+            return devices;
         }
         else
         {
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("Unable to connect real devices to the IoT Hub due to the lack of a connection string.");
-            sb.AppendLine($"Please, open {path} and add {devices.Count - connections.Count} connection string(s), then restart this program");
+            sb.AppendLine($"Please, add {devices.Count - connections.Count} connection string(s).");
             throw new FileLoadException(sb.ToString());
         }
     }
-    private static List<string> ReadConnectionStrings(string path) //method for reading all connection strings to IoT Hub devices
-    {
-        List<string> connections = new List<string>();
-        string pattern = @"^HostName=.+.azure-devices.net;DeviceId=.+;SharedAccessKey=.+=$";
-        Regex regex = new Regex(pattern);
-        using(StreamReader sr = new StreamReader(path))
-        { 
-            while(!sr.EndOfStream)
-            {
-                string line = sr.ReadLine() ?? "";
-                if (line != "")
-                {
-                    var match = regex.Match(line);
-                    if(match.Success)
-                        connections.Add(match.Value);
-                }
-            }
-        }
-        return connections;
-     }
     private static List<OpcNodeInfo> BrowseDevices(OpcClient client) //Method for counting how many devices we have in our system (Stopped and working)
    {
         var objectFolder = client.BrowseNode(OpcObjectTypes.ObjectsFolder);

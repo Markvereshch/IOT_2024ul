@@ -27,7 +27,6 @@ namespace VirtualDevices
     {
         private readonly OpcNodeInfo serverDevice;
         private readonly DeviceClient deviceClient;
-        private readonly string connectionString;
         private readonly OpcClient opcClient;
         private readonly string nodeId;
         public OpcNodeInfo ServerDevice
@@ -38,15 +37,10 @@ namespace VirtualDevices
         {
             get { return deviceClient; } 
         }
-        public string ConnectionString
-        {
-            get { return connectionString;}
-        }
-        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, string connectionString, OpcClient opcClient)
+        public Device(DeviceClient deviceClient, OpcNodeInfo serverDevice, OpcClient opcClient)
         {
             this.deviceClient = deviceClient;
             this.serverDevice = serverDevice;
-            this.connectionString = connectionString;
             this.opcClient = opcClient;
             nodeId = CreateDeviceNodeId();
         }
@@ -202,7 +196,14 @@ namespace VirtualDevices
 
             if(newFoundErrors != 0)
             {
-                await EmailSender.SendErrorMessageToEmailsAsync(dataString);
+                try
+                {
+                    await EmailSender.SendErrorMessageToEmailsAsync(dataString);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"ERROR DURING SENDING AN EMAIL: {ex.Message}");
+                }
             }
 
             await ReportPropertyToTwinAsync("DeviceError", errorCode);
