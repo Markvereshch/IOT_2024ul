@@ -55,10 +55,10 @@ internal static class ProgramEntryPoint
         }
         catch(Exception ex) 
         {
-            Console.WriteLine($"Unknown errror: {ex.Message}");
+            Console.WriteLine($"Unknown error: {ex.Message}");
         }
     }
-    private static List<OpcNodeInfo> ConnectDevicesWithIoTDevices(OpcClient client, List<string> connections)
+    private static List<OpcNodeInfo> ConnectDevicesWithIoTDevices(OpcClient client, List<string> connections) //Checks, whether we can connect server devices to azure devices. If no, then FileLoadException is thrown.
     {
         List<OpcNodeInfo> devices = new List<OpcNodeInfo> ();
         devices = BrowseDevices(client);
@@ -73,10 +73,8 @@ internal static class ProgramEntryPoint
         }
         else
         {
-            StringBuilder sb = new StringBuilder();
-            sb.AppendLine("Unable to connect real devices to the IoT Hub due to the lack of a connection string.");
-            sb.AppendLine($"Please, add {devices.Count - connections.Count} connection string(s).");
-            throw new FileLoadException(sb.ToString());
+            throw new FileLoadException("Unable to connect real devices to the IoT Hub due to the lack of a connection string.\n" +
+                                        $"Please, add {devices.Count - connections.Count} connection string(s).");
         }
     }
     private static List<OpcNodeInfo> BrowseDevices(OpcClient client) //Method for counting how many devices we have in our system (Stopped and working)
@@ -90,13 +88,13 @@ internal static class ProgramEntryPoint
         }
         return devices;
     }
-    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is serverDevice node or not
+    private static bool IsDeviceNode(OpcNodeInfo nodeInfo) //Method for understanding, whether node is a serverDevice node or not
     {
         string pattern = @"^Device [0-9]+$";
-        Regex exp = new Regex(pattern);
+        Regex correctName = new Regex(pattern);
         string nodeName = nodeInfo.Attribute(OpcAttribute.DisplayName).Value.ToString();
-        MatchCollection matchedName = exp.Matches(nodeName);
-        if (matchedName.Count == 1)
+        Match matchedName = correctName.Match(nodeName);
+        if (matchedName.Success)
             return true;
         else
             return false;

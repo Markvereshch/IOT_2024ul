@@ -23,7 +23,7 @@ namespace DeviceReader
         private readonly List<string> connections;
         private readonly List<OpcNodeInfo> devices;
         private readonly OpcClient client;
-        private List<Device> connectedDevices;
+        private readonly List<Device> connectedDevices;
         public ClientManager(List<string> connections, List<OpcNodeInfo> devices, OpcClient client)
         {
             this.connections = connections;
@@ -54,7 +54,7 @@ namespace DeviceReader
                 await device.InitializeHandlersAsync();
                 connectedDevices.Add(device);
             }
-            Console.WriteLine("Connection success.");
+            Console.WriteLine($"Connection success.");
         }
         private async Task ReadMessagesContinuously()
         {

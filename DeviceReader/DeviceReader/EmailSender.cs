@@ -29,7 +29,7 @@ namespace AgentApp
             }
             catch (Exception ex) 
             {
-                Console.WriteLine("EMAIL CLIENT ERROR: Invalid connection string to Azure Communication Services. Please verify your connection string.");
+                Console.WriteLine($"{DateTime.Now}: EMAIL CLIENT ERROR! Invalid connection string to Azure Communication Services. Please verify your connection string.");
             }
         }
         static public async Task SendErrorMessageToEmailsAsync(string message)
@@ -38,7 +38,7 @@ namespace AgentApp
             {
                 throw new InvalidDataException("There are no addresses in the configuration file");
             }
-            Console.WriteLine($"Sending message to {recipients.Count} email address/addresses...");
+            Console.WriteLine($"{DateTime.Now}: Sending message to {recipients.Count} email address/addresses...");
 
             string body = $"An error has occured on one of your devices. Please, take actions.\n\n{message}";
             string subject = "!!!DEVICE ERROR OCCURED!!!";
@@ -59,11 +59,11 @@ namespace AgentApp
                 EmailMessage emailMessage = new EmailMessage(sender, emailRecipients, emailContent);
 
                 EmailSendOperation emailSendOperation = await emailClient.SendAsync(Azure.WaitUntil.Completed, emailMessage);
-                Console.WriteLine("Notification about an error has been sent successfully.");
+                Console.WriteLine($"{DateTime.Now}: Notification about an error has been sent successfully.");
             }
             catch (RequestFailedException ex)
             {
-                throw new RequestFailedException($"Invalid email sender username. Please use a username from the list of valid usernames configured by your admin.");
+                throw new RequestFailedException("Invalid email sender username. Please use a username from the list of valid usernames configured by your admin.");
             }
         }
     }

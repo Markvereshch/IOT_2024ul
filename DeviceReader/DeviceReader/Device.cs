@@ -29,6 +29,10 @@ namespace VirtualDevices
         private readonly DeviceClient deviceClient;
         private readonly OpcClient opcClient;
         private readonly string nodeId;
+
+        private int lastReportedErrorCode;
+        private int lastReportedProductionRate;
+
         public OpcNodeInfo ServerDevice
         {
             get { return serverDevice; }
@@ -48,12 +52,15 @@ namespace VirtualDevices
         {
             await InitializeTwinOnStartAsync();
 
-            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredPropertyChangedAsync, deviceClient);
+            await deviceClient.SetDesiredPropertyUpdateCallbackAsync(DesiredProductionRateChangedAsync, deviceClient);
 
             await deviceClient.SetMethodHandlerAsync("EmergencyStop", EmergencyStop, deviceClient);
             await deviceClient.SetMethodHandlerAsync("ResetErrorStatus", ResetErrorStatus, deviceClient);
 
             await deviceClient.SetMethodDefaultHandlerAsync(DefaultMethod, deviceClient);
+
+            lastReportedProductionRate = await GetReportedPropertyAsync("ProductionRate");
+            lastReportedErrorCode = await GetReportedPropertyAsync("DeviceError");
         }
         private string CreateDeviceNodeId()
         {
@@ -96,7 +103,7 @@ namespace VirtualDevices
         }
         private async Task SendMessageToHubAsync(string content) //Send D2C message
         {
-            Console.WriteLine(content);
+            Console.WriteLine($"{DateTime.Now}: {content}");
             Message message = new Message(Encoding.UTF8.GetBytes(content));
             message.ContentType = MediaTypeNames.Application.Json;
             message.ContentEncoding = "utf-8";
@@ -106,17 +113,10 @@ namespace VirtualDevices
         #region Device Twin
         public async Task<int> GetReportedPropertyAsync(string name)//Get a DeviceError or ProductionRate properties
         {
-            try
-            {
-                var twin = await deviceClient.GetTwinAsync();
-                var reportedProperties = twin.Properties.Reported;
-                int property = reportedProperties.Contains(name) ? reportedProperties[name] : 0;
-                return property;
-            }
-            catch
-            {
-                return 0;
-            }
+            var twin = await deviceClient.GetTwinAsync();
+            var reportedProperties = twin.Properties.Reported;
+            int property = reportedProperties.Contains(name) ? reportedProperties[name] : 0;
+            return property;
         }
         public async Task ReportPropertyToTwinAsync(string propertyName, int value)//Report a ProductionRate or DeviceError to the device twin
         {
@@ -125,7 +125,7 @@ namespace VirtualDevices
             if (propertyName.Equals("ProductionRate"))
             {
                 string deviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-                Console.WriteLine($"Production rate of {deviceName} has been changed to {value}");
+                Console.WriteLine($"{DateTime.Now}: Production rate of {deviceName} has been changed to {value}");
             }
             await deviceClient.UpdateReportedPropertiesAsync(reportedProperties);
         }
@@ -138,7 +138,7 @@ namespace VirtualDevices
             initialReportedProperties["DeviceError"] = 0;
             initialReportedProperties["ProductionRate"] = desiredInitialRate;
 
-            Console.WriteLine("Initial production rate of '{0}', which is determined by the Desired DT, is {1}", nodeId, desiredInitialRate);
+            Console.WriteLine($"{DateTime.Now}: Initial production rate of '{nodeId}', which is determined by the Desired DT, is {desiredInitialRate}");
 
             await deviceClient.UpdateReportedPropertiesAsync(initialReportedProperties);
         }
@@ -149,21 +149,22 @@ namespace VirtualDevices
             var rate = desiredProperties.Contains("ProductionRate") ? desiredProperties["ProductionRate"] : 0;
             return rate;
         }
-        private async Task DesiredPropertyChangedAsync(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
+        private async Task DesiredProductionRateChangedAsync(TwinCollection desiredProperties, object userContext) //Set the production rate so that it is equal to the desired value.
         {
             if(desiredProperties.Contains("ProductionRate"))
             {
-                Console.WriteLine($"Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
+                Console.WriteLine($"{DateTime.Now}: Desired Production Value has changed to {desiredProperties["ProductionRate"]}");
 
                 int rate = (int)desiredProperties["ProductionRate"];
                 await ReportPropertyToTwinAsync("ProductionRate", rate);
+                lastReportedProductionRate = rate;
                 OpcStatus result = opcClient.WriteNode(nodeId + "/ProductionRate", rate);
 
                 Console.WriteLine(result.ToString());
             }
             else
             {
-                Console.WriteLine("An unknown property has been set in the desired device twin");
+                Console.WriteLine($"{DateTime.Now}: An unknown property has been set in the desired device twin");
             }
         }
         #endregion
@@ -172,10 +173,11 @@ namespace VirtualDevices
         {
             int errorCode = int.Parse(ReadDeviceNode("/DeviceError"));
 
-            int reportedErrorCode = await GetReportedPropertyAsync("DeviceError");
+            int reportedErrorCode = lastReportedErrorCode;
             if (errorCode != reportedErrorCode)
             {
                 await SendErrorEventMessageAsync(errorCode, reportedErrorCode);
+                lastReportedErrorCode = errorCode;
             }
         }
         private async Task SendErrorEventMessageAsync(int errorCode, int reportedErrorCode)//Send a message with occured error
@@ -202,7 +204,7 @@ namespace VirtualDevices
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"ERROR DURING SENDING AN EMAIL: {ex.Message}");
+                    Console.WriteLine($"{DateTime.Now}: ERROR DURING SENDING AN EMAIL: {ex.Message}");
                 }
             }
 
@@ -278,20 +280,20 @@ namespace VirtualDevices
         private async Task<MethodResponse> EmergencyStop(MethodRequest request, object userContext)
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/EmergencyStop");
-            Console.WriteLine("EmergencyStop method executed on {0}", nodeId);
+            Console.WriteLine("{1}: EmergencyStop method executed on {0}", nodeId, DateTime.Now);
             await Task.Delay(100);
             return new MethodResponse(0);
         }
         private async Task<MethodResponse> ResetErrorStatus(MethodRequest request, object userContext)
         {
             object[] result = opcClient.CallMethod(nodeId, nodeId + "/ResetErrorStatus");
-            Console.WriteLine("ResetErrorStatus method executed on {0}", nodeId);
+            Console.WriteLine("{1}: ResetErrorStatus method executed on {0}", nodeId, DateTime.Now);
             await Task.Delay(100);
             return new MethodResponse(0);
         }
         private async Task<MethodResponse> DefaultMethod(MethodRequest request, object userContext)
         {
-            Console.WriteLine("An unknown method was received on {0}", nodeId);
+            Console.WriteLine("{1}: An unknown method was received on {0}", nodeId, DateTime.Now);
             await Task.Delay(100);
             return new MethodResponse(0);
         }
@@ -301,9 +303,10 @@ namespace VirtualDevices
         {
             int rate = int.Parse(ReadDeviceNode("/ProductionRate"));
 
-            if (rate != await GetReportedPropertyAsync("ProductionRate"))
+            if (rate != lastReportedProductionRate)
             {
                 await ReportPropertyToTwinAsync("ProductionRate", rate);
+                lastReportedProductionRate = rate;
             }
         }
         #endregion
