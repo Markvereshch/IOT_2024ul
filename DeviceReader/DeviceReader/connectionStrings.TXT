@@ -1,1 +1,0 @@
-HostName=IoT2024ul.azure-devices.net;DeviceId=DEVICE_ID;SharedAccessKey=SHARED_ACCESS_KEY=

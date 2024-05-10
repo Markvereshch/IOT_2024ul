@@ -1,4 +1,5 @@
-﻿using Microsoft.Azure.Devices.Client;
+﻿using AgentApp;
+using Microsoft.Azure.Devices.Client;
 using Newtonsoft.Json;
 using Opc.Ua;
 using Opc.UaFx;
@@ -15,20 +16,25 @@ namespace DeviceReader
 {
     internal class ClientManager
     {
-        private const int telemetryReadingDelay = 5000;
-        private const int errorReadingDelay = 2000;
-        private const int productionRateReadingDelay = 2000;
+        private readonly int telemetryReadingDelay;
+        private readonly int errorReadingDelay;
+        private readonly int productionRateReadingDelay;
 
         private readonly List<string> connections;
         private readonly List<OpcNodeInfo> devices;
         private readonly OpcClient client;
-        private List<Device> connectedDevices;
+        private readonly List<Device> connectedDevices;
         public ClientManager(List<string> connections, List<OpcNodeInfo> devices, OpcClient client)
         {
             this.connections = connections;
             this.devices = devices;
             this.client = client;
             this.connectedDevices = new List<Device>();
+
+            var settings = AppSettings.GetSettings();
+            this.telemetryReadingDelay = settings.TelemetrySendingDelayInMs;
+            this.errorReadingDelay = settings.ErrorCheckingDelayInMs;
+            this.productionRateReadingDelay = settings.ProductionRateCheckingDelayInMs;
         }
         public async Task InitializeClientManager()
         {
@@ -44,11 +50,11 @@ namespace DeviceReader
                 var deviceClient = DeviceClient.CreateFromConnectionString(connections[i]);
                 await deviceClient.OpenAsync();
 
-                Device device = new Device(deviceClient, devices[i], connections[i], client);
-                await device.Initialize();
+                Device device = new Device(deviceClient, devices[i], client);
+                await device.InitializeHandlersAsync();
                 connectedDevices.Add(device);
             }
-            Console.WriteLine("Connection success.");
+            Console.WriteLine($"Connection success.");
         }
         private async Task ReadMessagesContinuously()
         {
@@ -56,7 +62,7 @@ namespace DeviceReader
             {
                 foreach (var device in connectedDevices)
                 {
-                    await device.ReadTelemetryAndSendToHub();
+                    await device.ReadTelemetryAndSendToHubAsync();
                 }
                 await Task.Delay(telemetryReadingDelay);
             }
@@ -67,7 +73,7 @@ namespace DeviceReader
             {
                 foreach (var device in connectedDevices)
                 {
-                    await device.ReadErrorsAndSendToHubIfOccured();
+                    await device.ReadErrorsAndSendToHubIfOccuredAsync();
                 }
                 await Task.Delay(errorReadingDelay);
             }
@@ -78,7 +84,7 @@ namespace DeviceReader
             {
                 foreach(var device in connectedDevices)
                 {
-                    await device.ReadProductionRateAndSendChangeToHub(); 
+                    await device.ReadProductionRateAndSendChangeToHubAsync(); 
                 }
                 await Task.Delay(productionRateReadingDelay);
             }

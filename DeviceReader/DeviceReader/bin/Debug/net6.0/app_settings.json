@@ -1,0 +1,10 @@
+{
+  "ServerConnectionString": null,
+  "AzureDevicesConnectionStrings": [],
+  "TelemetrySendingDelayInMs": 3000,
+  "ErrorCheckingDelayInMs": 3000,
+  "ProductionRateCheckingDelayInMs": 3000,
+  "CommunicationServicesConnectionString": null,
+  "CommunicationServicesSender": null,
+  "EmailAddresses": []
+}
