@@ -173,20 +173,19 @@ namespace VirtualDevices
         {
             int errorCode = int.Parse(ReadDeviceNode("/DeviceError"));
 
-            int reportedErrorCode = lastReportedErrorCode;
-            if (errorCode != reportedErrorCode)
+            if (errorCode != lastReportedErrorCode)
             {
-                await SendErrorEventMessageAsync(errorCode, reportedErrorCode);
+                await SendErrorEventMessageAsync(errorCode);
                 lastReportedErrorCode = errorCode;
             }
         }
-        private async Task SendErrorEventMessageAsync(int errorCode, int reportedErrorCode)//Send a message with occured error
+        private async Task SendErrorEventMessageAsync(int errorCode)//Send a message with occured error
         {
             string serverDeviceName = ServerDevice.Attribute(OpcAttribute.DisplayName).Value.ToString();
-            int newFoundErrors = FindTheNumberOfNewErrors(errorCode, reportedErrorCode);
+            int newFoundErrors = FindTheNumberOfNewErrors(errorCode);
             var data = new
             {
-                errorName = FindTheNameOfOccuredErrors(errorCode, reportedErrorCode),
+                errorName = FindTheNameOfOccuredErrors(errorCode),
                 newErrors = newFoundErrors,
                 deviceName = serverDeviceName,
                 currentErrors = CreateErrorMessage(errorCode),
@@ -210,9 +209,9 @@ namespace VirtualDevices
 
             await ReportPropertyToTwinAsync("DeviceError", errorCode);
         }
-        private string FindTheNameOfOccuredErrors(int errorCode, int reportedErrorCode)
+        private string FindTheNameOfOccuredErrors(int errorCode)
         {
-            int difference = errorCode - reportedErrorCode;
+            int difference = errorCode - lastReportedErrorCode;
             if (difference <= 0)
             {
                 return "None";
@@ -220,9 +219,9 @@ namespace VirtualDevices
             string errorName = ((DeviceErrors)difference).ToString();
             return errorName;
         }
-        private int FindTheNumberOfNewErrors(int errorCode, int reportedErrorCode)
+        private int FindTheNumberOfNewErrors(int errorCode)
         {
-            int difference = errorCode - reportedErrorCode;
+            int difference = errorCode - lastReportedErrorCode;
             int numberOfErrors = 0;
             DeviceErrors error = (DeviceErrors)difference;
             if (difference > 0)
