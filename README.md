@@ -525,7 +525,7 @@ If you launch this function app locally on your PC, then **local.settings.json**
 ```
 If you are running this function app from Azure, provide these parameters as environment variables.
 
-#### 2. Reset Error Status Trigger
+#### 2. Decrease Production Rate Trigger
 
 If a device experiences drop of good production rate below 90%, then desired production rate is decreased by 10 points.
 
