@@ -1,0 +1,17 @@
+{
+  "ServerConnectionString": "opc.tcp://localhost:3030/",
+  "AzureDevicesConnectionStrings": [
+    "HostName=IOT_HUB_NAME.azure-devices.net;DeviceId=AZURE_DEVICE_ID;SharedAccessKey=SHARED_ACCESS_KEY=",
+    "HostName=IOT_HUB_NAME.azure-devices.net;DeviceId=AZURE_DEVICE_ID;SharedAccessKey=SHARED_ACCESS_KEY=",
+    "HostName=IOT_HUB_NAME.azure-devices.net;DeviceId=AZURE_DEVICE_ID;SharedAccessKey=SHARED_ACCESS_KEY=",
+  ],
+  "TelemetrySendingDelayInMs": 5000,
+  "ErrorCheckingDelayInMs": 2000,
+  "ProductionRateCheckingDelayInMs": 2000,
+  "CommunicationServicesConnectionString": "endpoint=https://AZURE_COMMUNICATION_SERVICES_NAME.europe.communication.azure.com/;accesskey=ACCESS_KEY==",
+  "CommunicationServicesSender": "DoNotReply@SOME_SYMBOLS.azurecomm.net",
+  "EmailAddresses": [
+    "example@edu.uni.pl",
+    "example2@gmail.com"
+  ]
+}

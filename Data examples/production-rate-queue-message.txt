@@ -1,0 +1,1 @@
+{"WindowEndTime":"2024-05-11T11:55:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":139013.0,"TotalVolume":208433.0,"ProcentOfGoodProduction":66.69433343088666}

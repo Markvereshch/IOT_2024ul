@@ -1,0 +1,5 @@
+[IoT2024-2] is just another consumer group of my IoT Hub.
+It was created because Azure Stream Analytics warned me that I 
+have too many readers from the $Default consumer group.
+
+[IoT2024] it is the $Default consumer group of my IoT Hub.

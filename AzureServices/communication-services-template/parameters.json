@@ -1,0 +1,12 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "emailServices_error_message_to_email_name": {
+            "value": null
+        },
+        "CommunicationServices_iot_communication_service_name": {
+            "value": null
+        }
+    }
+}

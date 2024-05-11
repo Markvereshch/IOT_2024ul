@@ -1,0 +1,1 @@
+{"WindowEndTime":"2024-05-10T17:45:03.7540000Z","ConnectionDeviceId":"pr_device2","OccuredErrors":3.0}

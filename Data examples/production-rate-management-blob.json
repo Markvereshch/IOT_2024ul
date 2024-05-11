@@ -1,0 +1,10 @@
+{"WindowEndTime":"2024-05-10T09:20:00.0000000Z","ConnectionDeviceId":"pr_device2","GoodCount":4658.0,"TotalVolume":5418.0,"ProcentOfGoodProduction":85.97268364710226}
+{"WindowEndTime":"2024-05-10T09:20:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":4039.0,"TotalVolume":5207.0,"ProcentOfGoodProduction":77.56865757633955}
+{"WindowEndTime":"2024-05-10T09:30:00.0000000Z","ConnectionDeviceId":"pr_device2","GoodCount":59767.0,"TotalVolume":86521.0,"ProcentOfGoodProduction":69.0780272997307}
+{"WindowEndTime":"2024-05-10T09:30:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":77518.0,"TotalVolume":114426.0,"ProcentOfGoodProduction":67.74509289846714}
+{"WindowEndTime":"2024-05-10T09:35:00.0000000Z","ConnectionDeviceId":"pr_device2","GoodCount":59504.0,"TotalVolume":87327.0,"ProcentOfGoodProduction":68.13929254411579}
+{"WindowEndTime":"2024-05-10T09:35:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":82122.0,"TotalVolume":120492.0,"ProcentOfGoodProduction":68.1555621950005}
+{"WindowEndTime":"2024-05-10T09:45:00.0000000Z","ConnectionDeviceId":"pr_device2","GoodCount":18516.0,"TotalVolume":27625.0,"ProcentOfGoodProduction":67.0262443438914}
+{"WindowEndTime":"2024-05-10T09:45:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":36938.0,"TotalVolume":46664.0,"ProcentOfGoodProduction":79.15738042173838}
+{"WindowEndTime":"2024-05-10T09:50:00.0000000Z","ConnectionDeviceId":"pr_device2","GoodCount":38689.0,"TotalVolume":57784.0,"ProcentOfGoodProduction":66.95452028243112}
+{"WindowEndTime":"2024-05-10T09:50:00.0000000Z","ConnectionDeviceId":"pr_device1","GoodCount":78570.0,"TotalVolume":98553.0,"ProcentOfGoodProduction":79.72360049922376}

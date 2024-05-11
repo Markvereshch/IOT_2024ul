@@ -1,0 +1,38 @@
+{
+    "name": "asa-factoryIoT",
+    "startFile": "Transformation.asaql",
+    "configurations": [
+        {
+            "filePath": "JobConfig.json",
+            "subType": "JobConfig"
+        },
+        {
+            "filePath": "Outputs/production-rate-management.json",
+            "subType": "Output"
+        },
+        {
+            "filePath": "Outputs/error-evaluations.json",
+            "subType": "Output"
+        },
+        {
+            "filePath": "Outputs/temperature-measurements.json",
+            "subType": "Output"
+        },
+        {
+            "filePath": "Inputs/IoT2024ul.json",
+            "subType": "Input"
+        },
+        {
+            "filePath": "Inputs/IoT2024ul-2.json",
+            "subType": "Input"
+        },
+        {
+            "filePath": "Outputs/production-rate-queue.json",
+            "subType": "Output"
+        },
+        {
+            "filePath": "Outputs/error-queue.json",
+            "subType": "Output"
+        }
+    ]
+}

@@ -1,0 +1,76 @@
+/*Stores errors in blobs*/
+SELECT
+    System.Timestamp() AS WindowEndTime,
+    IoTHub.ConnectionDeviceId,
+    SUM(newErrors) as OccuredErrors
+INTO
+    [error-evaluations]
+FROM
+    [IoT2024ul]
+WHERE 
+    errorName IS NOT null AND
+    errorName != 'None'
+GROUP BY
+    IoTHub.ConnectionDeviceId,
+    SlidingWindow(minute,1)
+HAVING 
+     occuredErrors >= 3;
+/*Sends errors to the Function App*/
+SELECT
+    System.Timestamp() AS WindowEndTime,
+    IoTHub.ConnectionDeviceId,
+    SUM(newErrors) as OccuredErrors
+INTO
+    [error-queue]
+FROM
+    [IoT2024ul-2]
+WHERE 
+    errorName IS NOT null AND
+    errorName != 'None'
+GROUP BY
+    IoTHub.ConnectionDeviceId,
+    SlidingWindow(minute,1)
+HAVING 
+     occuredErrors >= 3;
+/*Stores temperature measurements in blobs*/
+SELECT
+    System.Timestamp() AS WindowEndTime,
+    IoTHub.ConnectionDeviceId,
+    MIN(temperature) AS MinTemp, 
+    MAX(temperature) AS MaxTemp,
+    AVG(temperature) AS AvgTemp
+INTO
+    [temperature-measurements]
+FROM
+    [IoT2024ul]
+GROUP BY
+    IoTHub.ConnectionDeviceId,
+    HoppingWindow(minute,5,1);
+/*Stores Production KPIs in blobs*/
+SELECT
+    System.Timestamp() AS WindowEndTime,
+    IoTHub.ConnectionDeviceId,
+    SUM(goodCount) AS GoodCount, 
+    SUM(goodCount+badCount) AS TotalVolume,
+    (SUM(goodCount)*100.0)/SUM(goodCount+badCount) AS ProcentOfGoodProduction
+INTO
+    [production-rate-management]
+FROM
+    [IoT2024ul]
+GROUP BY
+    IoTHub.ConnectionDeviceId,
+    TumblingWindow(minute,5);
+/*Sends Production KPIs to the Function App*/
+SELECT
+    System.Timestamp() AS WindowEndTime,
+    IoTHub.ConnectionDeviceId,
+    SUM(goodCount) AS GoodCount, 
+    SUM(goodCount+badCount) AS TotalVolume,
+    (SUM(goodCount)*100.0)/SUM(goodCount+badCount) AS ProcentOfGoodProduction
+INTO
+    [production-rate-queue]
+FROM
+    [IoT2024ul-2]
+GROUP BY
+    IoTHub.ConnectionDeviceId,
+    TumblingWindow(minute,5);
