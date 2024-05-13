@@ -349,12 +349,30 @@ This results in the agent, which compares the current error code with the report
 > We go to the IoT Explorer, select this device and call the `EmergencyStop` method on it.
 >
 > Now we can observe that our device has only one active error flag - the Emergency Stop flag. We also now cannot run production on this device because it is locked.
+>
 
-Here is the console output after performing an emergency stop:
+* Device error flags in the simulator application before calling Emergency Stop:
+  
+![beforeES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/5679767c-d6c4-44b8-acd9-af95e2f5a181)
+
+* Invocation of the EmergencyStop direct method from the IoT Explorer:
+  
+![EmergencyStopFromIoTExplorer](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/47b17a68-31f8-48c2-9aa4-4482f9cba96d)
+
+* IoT Explorer message about successful invocation:
+```
+Successfully invoked method 'EmergencyStop' on device 'pr_device1' with response {"status":0,"payload":null}
+```
+
+* Here is the console output after performing an Emergency Stop:
 ```
 10.05.2024 23:22:33: EmergencyStop method executed on ns=2;s=Device 1
 10.05.2024 23:22:34: {"errorName":"EmergencyStop","newErrors":1,"deviceName":"Device 1","currentErrors":"'Emergency Stop'","currentErrorCode":1}
 ```
+* Device error flags in the simulator application after calling Emergency Stop:
+
+![afterES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/ea5bbc5f-c99e-4b8e-b53a-c0d1d9635239)
+
 #### 2. Reset Error Status
 
 Removes all error flags, including the Emergency Stop flag. As with the Emergency Stop direct method, it modifies error data on the server. The next time the agent compares the error codes of the device and its twin, it reports a new error code (which is 0, because all error flags were removed) from the server to the device twin. 
@@ -370,11 +388,28 @@ Removes all error flags, including the Emergency Stop flag. As with the Emergenc
 >
 > Now we can see that the Emergency Stop flag is unchecked. This means we are ready to start production once again.
 
-Here is the console output after performing a reset error status:
+* Device error flags in the simulator application before calling Reset Error Status:
+
+![beforeRES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/1a5db963-cbbf-404c-bddf-8b4b086e2596)
+
+* Invocation of the ResetErrorStatus direct method from the IoT Explorer:
+
+![ResetErrorStatusFromIoTExplorer](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/f7e36fd6-559f-4817-b0b4-d00bd5f38045)
+
+* IoT Explorer message about successful invocation:
+```
+Successfully invoked method 'ResetErrorStatus' on device 'pr_device1' with response {"status":0,"payload":null}
+```
+
+* Here is the console output after performing a Reset Error Status:
 ```
 10.05.2024 23:24:17: ResetErrorStatus method executed on ns=2;s=Device 1
 10.05.2024 23:24:18: {"errorName":"None","newErrors":0,"deviceName":"Device 1","currentErrors":"'None'","currentErrorCode":0}
 ```
+
+* Device error flags in the simulator application after calling Reset Error Status:
+
+![afterRES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/1753fd6d-ef43-4e0e-b416-bde6f15a96ae)
 
 #### 3. Default method
 
@@ -388,12 +423,20 @@ If you call a method that does not exist or make a mistake in the keyword of one
 >
 > Unfortunately, the agent doesn't provide such a method, so the Default Method will be executed instead:(
 
-Here is the console output:
+* Invocation of the ResetErrorStatus direct method from the IoT Explorer:
+
+![DefaultMethodFromIoTExplorer](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/f1866686-9dae-4e83-b1cc-6711e3c1b1c9)
+
+* IoT Explorer message about successful invocation:
+```
+Successfully invoked method 'PizzaTime' on device 'pr_device1' with response {"status":0,"payload":null}
+```
+
+* Here is the console output:
 ```
 10.05.2024 23:26:38: An unknown method was received on ns=2;s=Device 1
 ```
 ----
-
 ### Calculations
 
 There are 3 types of calculations in the project that work with data from the IoT Hub: 
