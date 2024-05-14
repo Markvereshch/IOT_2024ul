@@ -1,12 +1,8 @@
-﻿using Opc.Ua;
-using Opc.UaFx;
+﻿using Opc.UaFx;
 using Opc.UaFx.Client;
 using System.Text.RegularExpressions;
-using VirtualDevices;
 using DeviceReader;
-using System.Text;
 using AgentApp;
-using System.IO;
 
 internal static class ProgramEntryPoint
 {

@@ -1,17 +1,8 @@
 ﻿using AgentApp;
 using Microsoft.Azure.Devices.Client;
-using Newtonsoft.Json;
-using Opc.Ua;
-using Opc.UaFx;
 using Opc.UaFx.Client;
-using Org.BouncyCastle.Asn1;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
 using VirtualDevices;
+
 namespace DeviceReader
 {
     internal class ClientManager

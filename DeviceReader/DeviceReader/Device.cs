@@ -1,14 +1,9 @@
 ﻿using AgentApp;
-using DeviceReader;
-using Microsoft.Azure.Amqp.Framing;
 using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using Opc.Ua;
 using Opc.UaFx;
 using Opc.UaFx.Client;
-using Org.BouncyCastle.Asn1.IsisMtt.X509;
 using System.Net.Mime;
 using System.Text;
 
