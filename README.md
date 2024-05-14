@@ -1,4 +1,4 @@
-## AGENT APP - USER DOCUMENTATION (the README variant)
+## AGENT APP - USER DOCUMENTATION
 
 ### Connection to OPC UA Server
 
@@ -43,7 +43,7 @@ _(if you just want to have device-cloud communication without notifications to y
 > 3. Delays in milliseconds for telemetry sending, production rate checking and error checking.
 
 ###### 1.1 Adding data using app_settings.json file
-Find the **app_settings.json** file in the `/bin/Debug/net6.0` folder _(it is created after first launch of the application.) Open it and add your data. The result should look like this:
+Find the **app_settings.json** file in the `/bin/Debug/net6.0` folder _(it is created after first launch of the application)_. Open it and add your data. The result should look like this:
 
 ```
 {
@@ -351,7 +351,7 @@ This results in the agent, which compares the current error code with the report
 > Now we can observe that our device has only one active error flag - the Emergency Stop flag. We also now cannot run production on this device because it is locked.
 >
 
-* Device error flags in the simulator application before calling Emergency Stop:
+* Device error flags in the simulator application before calling an Emergency Stop:
   
 ![beforeES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/5679767c-d6c4-44b8-acd9-af95e2f5a181)
 
@@ -369,7 +369,7 @@ Successfully invoked method 'EmergencyStop' on device 'pr_device1' with response
 10.05.2024 23:22:33: EmergencyStop method executed on ns=2;s=Device 1
 10.05.2024 23:22:34: {"errorName":"EmergencyStop","newErrors":1,"deviceName":"Device 1","currentErrors":"'Emergency Stop'","currentErrorCode":1}
 ```
-* Device error flags in the simulator application after calling Emergency Stop:
+* Device error flags in the simulator application after calling an Emergency Stop:
 
 ![afterES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/ea5bbc5f-c99e-4b8e-b53a-c0d1d9635239)
 
@@ -407,7 +407,7 @@ Successfully invoked method 'ResetErrorStatus' on device 'pr_device1' with respo
 10.05.2024 23:24:18: {"errorName":"None","newErrors":0,"deviceName":"Device 1","currentErrors":"'None'","currentErrorCode":0}
 ```
 
-* Device error flags in the simulator application after calling Reset Error Status:
+* Device error flags in the simulator application after calling a Reset Error Status:
 
 ![afterRES](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/1753fd6d-ef43-4e0e-b416-bde6f15a96ae)
 
@@ -509,6 +509,9 @@ Here is an example of the contents of the blob:
 {"WindowEndTime":"2024-05-09T20:26:47.0440000Z","ConnectionDeviceId":"pr_device1","OccuredErrors":4.0}
 ```
 #### How are the calculations implemented?
+
+![calculations](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/094b5fec-d4de-49ea-b6f1-6b6a43a4135a)
+
 Generally, data calculations are implemented in the following way:
 1. Azure Stream Analytics reads data from the IoT Hub events.
 2. Then it performs calculations on this data using different queries with different types of windows _(`Sliding` for error evaluations, `Hopping` for temperature measurements and `Tumbling` for production KPI)_.
@@ -524,7 +527,10 @@ There are 3 types of business logic implemented in the project:
 
 If a device experiences more than 3 errors in under 1 minute, then the *Emergency Stop* direct method is called.
 
-##### How it is implemented?
+##### How is this implemented?
+
+![logic2](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/446ff9b3-88a6-4441-bb06-9e5c9abb5736)
+
 1. Azure Stream Analytics reads data from the IoT Hub events.
 2. Then it performs calculations on this data using special query, which checks for errors.
 3. If more then 3 errors occurred in under 1 minute, then ASA sends a special message to the Service Bus Queue called `error-queue`.
@@ -533,7 +539,7 @@ If a device experiences more than 3 errors in under 1 minute, then the *Emergenc
    
    ```{"WindowEndTime":"2024-05-10T17:45:03.7540000Z","ConnectionDeviceId":"pr_device2","OccuredErrors":3.0}```
    
-5. The new message triggers a _`invoke-emergency-stop` Function App_ that calls the _Emergency Stop_ direct method on the device.
+5. The new message triggers the _`invoke-emergency-stop` Function App_ that calls the _Emergency Stop_ direct method on the device.
 
 Function app log output:
 ```
@@ -572,7 +578,10 @@ If you are running this function app from Azure, provide these parameters as env
 
 If a device experiences drop of good production rate below 90%, then desired production rate is decreased by 10 points.
 
-##### How it is implemented?
+##### How is this implemented?
+
+![logic1](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/d2870ce5-7588-46a0-beb2-62f50cbd42db)
+
 1. Azure Stream Analytics reads data from the IoT Hub events.
 2. Then it performs calculations on this data using special query and sends a special message to the Service Bus Queue called `production-rate-queue`.
 
@@ -580,7 +589,7 @@ If a device experiences drop of good production rate below 90%, then desired pro
    
    ```{"WindowEndTime":"2024-05-10T17:45:03.7540000Z","ConnectionDeviceId":"pr_device2","OccuredErrors":3.0}```
    
-3. The new message triggers a _`invoke-emergency-stop` Function App_. This function app checks if the total volume of the device has dropped below 90%. If so, the desired production rate of the device is reduced by 10 points.
+3. The new message triggers the _`decrease-production-rate` Function App_. This function app checks if the total volume of the device has dropped below 90%. If so, the desired production rate of the device is reduced by 10 points.
 
 Function app log output:
 ```
@@ -624,9 +633,12 @@ If you are running this function app from Azure, provide these parameters as env
 
 If a device error occurs, then an email will be send to predefined addresses.
 
-##### How it is implemented?
-1. Agent App constantly checks device errors.
-2. If a new error occurs on any device, the agent runs the EmailSender class, which sends a custom message to the Azure communications service.
+##### How is this implemented?
+
+![logic3](https://github.com/Markvereshch/IOT_2024ul/assets/113990877/ff0c3608-a28f-43fb-8f75-1f0be16faf2f)
+
+1. Agent App constantly checks for device errors.
+2. If a new error occurs on any device, the agent runs the EmailSender class, which sends a custom message to the Azure Communication Services.
 3. Azure Communication Services sends the email to all recipients specified in the application settings _(**app_settings.json**)_.
 
 Here is an example email:
